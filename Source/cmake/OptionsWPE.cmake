@@ -109,6 +109,10 @@ find_package(EGL REQUIRED)
 
 find_package(WPE REQUIRED)
 
+if (ENABLE_TV_CONTROL)
+    find_package(WPETVControl REQUIRED)
+endif ()
+
 if (USE_WPEWEBKIT_BACKEND_BCM_RPI)
     find_package(BCMHost REQUIRED)
 endif ()
@@ -117,11 +121,11 @@ if (USE_WPEWEBKIT_BACKEND_WESTEROS)
     find_package(Wayland REQUIRED)
     find_package(WaylandEGL REQUIRED)
     find_package(westeros REQUIRED)
-endif(USE_WPEWEBKIT_BACKEND_WESTEROS)
+endif (USE_WPEWEBKIT_BACKEND_WESTEROS)
 
 if (USE_WPEWEBKIT_BACKEND_BCM_NEXUS_WAYLAND)
     find_package(Wayland REQUIRED)
-endif(USE_WPEWEBKIT_BACKEND_BCM_NEXUS_WAYLAND)
+endif (USE_WPEWEBKIT_BACKEND_BCM_NEXUS_WAYLAND)
 
 if (ENABLE_MEDIA_STREAM)
     find_package(OpenWebRTC)
@@ -164,7 +168,7 @@ if (ENABLE_LEGACY_ENCRYPTED_MEDIA_V1 OR ENABLE_LEGACY_ENCRYPTED_MEDIA)
     if (ENABLE_OCDM)
         find_package(OCDM REQUIRED)
         add_definitions(-DUSE_OCDM=1)
-    endif()
+    endif ()
 endif ()
 
 if (ENABLE_BREAKPAD)
