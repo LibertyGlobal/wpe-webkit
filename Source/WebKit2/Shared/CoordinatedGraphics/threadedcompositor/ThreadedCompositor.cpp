@@ -281,6 +281,14 @@ void ThreadedCompositor::updateSceneState(const CoordinatedGraphicsState& state)
     scheduleDisplayImmediately();
 }
 
+void ThreadedCompositor::releaseUpdateAtlases(Vector<uint32_t>&& atlasesToRemove)
+{
+    ASSERT(isMainThread());
+    m_compositingRunLoop->performTask([scene = makeRef(*m_scene), atlasesToRemove = WTFMove(atlasesToRemove)]() mutable {
+        scene->releaseUpdateAtlases(atlasesToRemove);
+    });
+}
+
 #if PLATFORM(WPE)
 static void debugThreadedCompositorFPS()
 {

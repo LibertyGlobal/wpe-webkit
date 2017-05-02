@@ -886,7 +886,6 @@ void ArgumentCoder<CoordinatedGraphicsState>::encode(Encoder& encoder, const Coo
         encoder << state.updateAtlasesToCreate[i].first;
         encodeCoordinatedSurface(encoder, state.updateAtlasesToCreate[i].second);
     }
-    encoder << state.updateAtlasesToRemove;
 }
 
 bool ArgumentCoder<CoordinatedGraphicsState>::decode(Decoder& decoder, CoordinatedGraphicsState& state)
@@ -952,9 +951,6 @@ bool ArgumentCoder<CoordinatedGraphicsState>::decode(Decoder& decoder, Coordinat
 
         state.updateAtlasesToCreate.append(std::make_pair(atlasID, surface.release()));
     }
-
-    if (!decoder.decode(state.updateAtlasesToRemove))
-        return false;
 
     return true;
 }

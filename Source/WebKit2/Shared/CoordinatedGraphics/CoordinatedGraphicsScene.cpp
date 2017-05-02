@@ -506,9 +506,6 @@ void CoordinatedGraphicsScene::syncUpdateAtlases(const CoordinatedGraphicsState&
 {
     for (auto& atlas : state.updateAtlasesToCreate)
         createUpdateAtlas(atlas.first, atlas.second);
-
-    for (auto& atlas : state.updateAtlasesToRemove)
-        removeUpdateAtlas(atlas);
 }
 
 void CoordinatedGraphicsScene::createUpdateAtlas(uint32_t atlasID, PassRefPtr<CoordinatedSurface> surface)
@@ -521,6 +518,12 @@ void CoordinatedGraphicsScene::removeUpdateAtlas(uint32_t atlasID)
 {
     ASSERT(m_surfaces.contains(atlasID));
     m_surfaces.remove(atlasID);
+}
+
+void CoordinatedGraphicsScene::releaseUpdateAtlases(const Vector<uint32_t>& atlasesToRemove)
+{
+    for (auto& atlas : atlasesToRemove)
+        removeUpdateAtlas(atlas);
 }
 
 void CoordinatedGraphicsScene::syncImageBackings(const CoordinatedGraphicsState& state)

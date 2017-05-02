@@ -181,6 +181,11 @@ void ThreadedCoordinatedLayerTreeHost::commitSceneState(const CoordinatedGraphic
     m_compositor->updateSceneState(state);
 }
 
+void ThreadedCoordinatedLayerTreeHost::releaseUpdateAtlases(Vector<uint32_t>&& atlasesToRemove)
+{
+    m_compositor->releaseUpdateAtlases(WTFMove(atlasesToRemove));
+}
+
 #if USE(REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR)
 RefPtr<WebCore::DisplayRefreshMonitor> ThreadedCoordinatedLayerTreeHost::createDisplayRefreshMonitor(PlatformDisplayID displayID)
 {
