@@ -71,15 +71,15 @@ bool WebCoordinatedSurface::Handle::decode(IPC::Decoder& decoder, Handle& handle
 
 RefPtr<WebCoordinatedSurface> WebCoordinatedSurface::create(const IntSize& size, CoordinatedSurface::Flags flags)
 {
-    RefPtr<WebCoordinatedSurface> surface;
 #if USE(GRAPHICS_SURFACE)
-    surface = createWithSurface(size, flags);
+    RefPtr<WebCoordinatedSurface> surface = createWithSurface(size, flags);
+    return surface;
 #endif
 
-    if (!surface)
-        surface = create(size, flags, ShareableBitmap::createShareable(size, (flags & SupportsAlpha) ? ShareableBitmap::SupportsAlpha : ShareableBitmap::NoFlags));
+    if (auto bitmap = ShareableBitmap::createShareable(size, (flags & SupportsAlpha) ? ShareableBitmap::SupportsAlpha : ShareableBitmap::NoFlags))
+        return create(size, flags, WTFMove(bitmap));
 
-    return surface;
+    return nullptr;
 }
 
 #if USE(GRAPHICS_SURFACE)
@@ -188,10 +188,8 @@ void WebCoordinatedSurface::paintToSurface(const IntRect& rect, CoordinatedSurfa
 }
 
 #if USE(TEXTURE_MAPPER)
-void WebCoordinatedSurface::copyToTexture(RefPtr<WebCore::BitmapTexture> passTexture, const IntRect& target, const IntPoint& sourceOffset)
+void WebCoordinatedSurface::copyToTexture(WebCore::BitmapTexture& texture, const IntRect& target, const IntPoint& sourceOffset)
 {
-    RefPtr<BitmapTexture> texture(passTexture);
-
 #if USE(GRAPHICS_SURFACE)
     if (isBackedByGraphicsSurface()) {
         RefPtr<BitmapTextureGL> textureGL = toBitmapTextureGL(texture.get());
@@ -210,7 +208,7 @@ void WebCoordinatedSurface::copyToTexture(RefPtr<WebCore::BitmapTexture> passTex
 
     ASSERT(m_bitmap);
     RefPtr<Image> image = m_bitmap->createImage();
-    texture->updateContents(image.get(), target, sourceOffset, BitmapTexture::UpdateCanModifyOriginalImageData);
+    texture.updateContents(image.get(), target, sourceOffset, BitmapTexture::UpdateCanModifyOriginalImageData);
 }
 #endif // USE(TEXTURE_MAPPER)
 
