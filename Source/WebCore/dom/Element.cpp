@@ -173,6 +173,9 @@ Element::Element(const QualifiedName& tagName, Document& document, ConstructionT
     : ContainerNode(document, type)
     , m_tagName(tagName)
 {
+#if PLATFORM(WPE)
+    m_revealModeOnFocus = std::getenv("WPE_DISABLE_SCROLL_TO_FOCUSED") ? SelectionRevealMode::DoNotReveal : SelectionRevealMode::Reveal;
+#endif
 }
 
 Element::~Element()
@@ -2405,7 +2408,7 @@ void Element::focus(bool restorePreviousSelection, FocusDirection direction)
         
     cancelFocusAppearanceUpdate();
 
-    SelectionRevealMode revealMode = SelectionRevealMode::Reveal;
+    SelectionRevealMode revealMode = m_revealModeOnFocus;
 #if PLATFORM(IOS)
     // Focusing a form element triggers animation in UIKit to scroll to the right position.
     // Calling updateFocusAppearance() would generate an unnecessary call to ScrollView::setScrollPosition(),
