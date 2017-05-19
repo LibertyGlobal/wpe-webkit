@@ -53,6 +53,7 @@ void WebPage::platformPreferencesDidChange(const WebPreferencesStore& store)
 {
     m_page->settings().setAllowRunningOfInsecureContent(store.getBoolValueForKey(WebPreferencesKey::allowRunningOfInsecureContentKey()));
     m_page->settings().setAllowDisplayOfInsecureContent(store.getBoolValueForKey(WebPreferencesKey::allowDisplayOfInsecureContentKey()));
+    m_page->settings().setScrollToFocusedElementEnabled(store.getBoolValueForKey(WebPreferencesKey::scrollToFocusedElementEnabledKey()));
 }
 
 bool WebPage::performDefaultBehaviorForKeyEvent(const WebKeyboardEvent&)

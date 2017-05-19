@@ -1800,3 +1800,13 @@ bool WKPreferencesGetAllowScriptsToCloseWindow(WKPreferencesRef preferencesRef)
 {
     return toImpl(preferencesRef)->allowScriptsToCloseWindows();
 }
+
+void WKPreferencesSetScrollToFocusedElementEnabled(WKPreferencesRef preferencesRef, bool enabled)
+{
+    toImpl(preferencesRef)->setScrollToFocusedElementEnabled(enabled);
+}
+
+bool WKPreferencesGetScrollToFocusedElementEnabled(WKPreferencesRef preferencesRef)
+{
+    return toImpl(preferencesRef)->scrollToFocusedElementEnabled();
+}
