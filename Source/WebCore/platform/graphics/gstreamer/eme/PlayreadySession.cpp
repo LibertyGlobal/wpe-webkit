@@ -112,6 +112,8 @@ PlayreadySession::~PlayreadySession()
 {
     GST_DEBUG("Releasing resources");
 
+    Drm_Uninitialize (m_poAppContext);
+
     if (DRM_REVOCATION_IsRevocationSupported())
         SAFE_OEM_FREE(m_pbRevocationBuffer);
 
