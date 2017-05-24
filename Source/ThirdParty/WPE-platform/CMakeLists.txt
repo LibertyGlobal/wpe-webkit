@@ -1,5 +1,10 @@
 set(WPE_PLATFORM_SOURCE_DIR "${CMAKE_SOURCE_DIR}/Source/ThirdParty/WPE-platform")
 
+add_definitions( -DVCX=5 )
+add_definitions( -DBSTD_CPU_ENDIAN=BSTD_ENDIAN_LITTLE )
+add_definitions( -I${PKG_CONFIG_SYSROOT_DIR}/usr/include/interface/khronos/include )
+add_definitions( -I${PKG_CONFIG_SYSROOT_DIR}/usr/include/interface/khronos/include/bcg_abstract )
+
 # Converted
 option(USE_WPE_BACKEND_BCM_NEXUS "Whether to enable support for the BCM_NEXUS WPE backend" OFF)
 option(USE_WPE_BACKEND_BCM_NEXUS_WAYLAND "Whether to enable support for the BCM_NEXUS Wayland WPE backend" OFF)

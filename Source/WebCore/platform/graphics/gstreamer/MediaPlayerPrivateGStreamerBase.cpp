@@ -791,30 +791,40 @@ void MediaPlayerPrivateGStreamerBase::clearCurrentBuffer()
 
 void MediaPlayerPrivateGStreamerBase::setSize(const IntSize& size)
 {
+    GRefPtr<GstElement> sinkElement;
+    g_object_get(m_pipeline.get(), "video-sink", &sinkElement.outPtr(), nullptr);
+    if(!sinkElement)
+        return;
+
     if (size == m_size)
         return;
 
     GST_INFO("Setting size to %dx%d", size.width(), size.height());
     m_size = size;
 
-#if USE(WESTEROS_SINK) || USE(FUSION_SINK)
+#if USE(WESTEROS_SINK) || USE(FUSION_SINK) || 1 // GENERIC RDK
     updateVideoRectangle();
 #endif
 }
 
 void MediaPlayerPrivateGStreamerBase::setPosition(const IntPoint& position)
 {
+    GRefPtr<GstElement> sinkElement;
+    g_object_get(m_pipeline.get(), "video-sink", &sinkElement.outPtr(), nullptr);
+    if(!sinkElement)
+        return;
+
     if (position == m_position)
         return;
 
     m_position = position;
 
-#if USE(WESTEROS_SINK) || USE(FUSION_SINK)
+#if USE(WESTEROS_SINK) || USE(FUSION_SINK) || 1 // GENERIC RDK
     updateVideoRectangle();
 #endif
 }
 
-#if USE(WESTEROS_SINK) || USE(FUSION_SINK)
+#if USE(WESTEROS_SINK) || USE(FUSION_SINK) || 1 // GENERIC RDK
 void MediaPlayerPrivateGStreamerBase::updateVideoRectangle()
 {
     if (!m_pipeline)

@@ -19,26 +19,41 @@
  * Boston, MA 02110-1335, USA.
  */
 
+#define TARGET_LITTLE_ENDIAN 1
+#define BSTD_CPU_ENDIAN BSTD_ENDIAN_LITTLE
+
 #ifndef PlayreadySession_h
 #define PlayreadySession_h
 
-#if USE(PLAYREADY)
 
-#include <drmtypes.h>
-#include <drmcommon.h>
-#include <drmmanager.h>
-#include <drmmathsafe.h>
+//#if USE(PLAYREADY)
+
+//#include <drmtypes.h>
+//#include <drmcommon.h>
+//#include <drmmanager.h>
+//#include <drmmathsafe.h>
+#include <string>
+#include <string.h>
+
+#include <drm_prdy_http.h>
+#include <drm_prdy.h>
+#include <drm_prdy_types.h>
+#include <drm_types.h>
+
 #undef __in
 #undef __out
 #include <runtime/Uint8Array.h>
 #include <wtf/Forward.h>
 
-namespace WebCore {
+namespace WebCore
+{
 
-class PlayreadySession {
+class PlayreadySession
+{
 
 private:
-    enum KeyState {
+    enum KeyState
+    {
         // Has been initialized.
         KEY_INIT = 0,
         // Has a key message pending to be processed.
@@ -58,29 +73,44 @@ public:
     RefPtr<Uint8Array> playreadyGenerateKeyRequest(Uint8Array* initData, const String& customData, String& destinationURL, unsigned short& errorCode, uint32_t& systemCode);
     bool playreadyProcessKey(Uint8Array* key, RefPtr<Uint8Array>& nextMessage, unsigned short& errorCode, uint32_t& systemCode);
 
-    bool keyRequested() const { return m_eKeyState == KEY_PENDING; }
-    bool ready() const { return m_eKeyState == KEY_READY; }
-    int processPayload(const void* iv, uint32_t ivSize, void* payloadData, uint32_t payloadDataSize);
+    bool keyRequested() const
+    {
+        return m_eKeyState == KEY_PENDING;
+    }
+    bool ready() const
+    {
+        return m_eKeyState == KEY_READY;
+    }
+
+    int processPayload(const void* iv, uint32_t ivSize, void* payloadData, uint32_t payloadDataSize, void** decrypted);
+    static void freeDecrypted(void* decrypted);
 
 protected:
     RefPtr<ArrayBuffer> m_key;
 
 private:
-    static DRM_RESULT DRM_CALL _PolicyCallback(const DRM_VOID* f_pvOutputLevelsData, DRM_POLICY_CALLBACK_TYPE f_dwCallbackType, const DRM_VOID* f_pv);
+    /*
+        static DRM_RESULT DRM_CALL _PolicyCallback(const DRM_VOID* f_pvOutputLevelsData, DRM_POLICY_CALLBACK_TYPE f_dwCallbackType, const DRM_VOID* f_pv);
 
-    DRM_APP_CONTEXT* m_poAppContext { nullptr };
-    DRM_DECRYPT_CONTEXT m_oDecryptContext;
+        DRM_APP_CONTEXT* m_poAppContext { nullptr };
+        DRM_DECRYPT_CONTEXT m_oDecryptContext;
 
-    DRM_BYTE* m_pbOpaqueBuffer { nullptr };
-    DRM_DWORD m_cbOpaqueBuffer;
+        DRM_BYTE* m_pbOpaqueBuffer { nullptr };
+        DRM_DWORD m_cbOpaqueBuffer;
 
-    DRM_BYTE* m_pbRevocationBuffer { nullptr };
+        DRM_BYTE* m_pbRevocationBuffer { nullptr };
+        KeyState m_eKeyState;
+        DRM_CHAR m_rgchSessionID[CCH_BASE64_EQUIV(SIZEOF(DRM_ID)) + 1];
+        DRM_BOOL m_fCommit;
+    */
+
+    DRM_Prdy_Handle_t   drmContext;
+    DRM_Prdy_DecryptContext_t  pDecryptContext;
     KeyState m_eKeyState;
-    DRM_CHAR m_rgchSessionID[CCH_BASE64_EQUIV(SIZEOF(DRM_ID)) + 1];
-    DRM_BOOL m_fCommit;
+    bool m_fCommit;
 };
 
 }
-#endif
+//#endif
 
 #endif

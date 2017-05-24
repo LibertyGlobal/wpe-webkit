@@ -253,7 +253,7 @@ protected:
 
 private:
 
-#if USE(WESTEROS_SINK) || USE(FUSION_SINK)
+#if USE(WESTEROS_SINK) || USE(FUSION_SINK) || 1 // GENERIC RDK
     void updateVideoRectangle();
 #endif
 
