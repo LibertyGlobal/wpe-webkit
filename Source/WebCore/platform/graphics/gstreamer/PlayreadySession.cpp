@@ -205,6 +205,7 @@ int PlayreadySession::processPayload(const void* iv, uint32_t ivSize, void* payl
     uint8_t *nexus_heap = NULL;
 
     GST_DEBUG("payloadData=%p, size=%d", payloadData, payloadDataSize);
+//    fprintf(stderr,"payloadData=%p, size=%d", payloadData, payloadDataSize);
     do
     {
         DRM_Prdy_AES_CTR_Info_t     aesCtrInfo;
@@ -231,7 +232,7 @@ int PlayreadySession::processPayload(const void* iv, uint32_t ivSize, void* payl
         }
 
         GST_DEBUG("*decrypted=%p, nexus_heap=%p, size=%d", *decrypted, nexus_heap, payloadDataSize);
-
+        fprintf(stderr,"*decrypted=%p, nexus_heap=%p, size=%d", *decrypted, nexus_heap, payloadDataSize);
         // FIXME: IV bytes need to be swapped ???
         uint8_t temp;
         for (uint32_t i = 0; i < ivSize / 2; i++)
@@ -256,7 +257,7 @@ int PlayreadySession::processPayload(const void* iv, uint32_t ivSize, void* payl
         NEXUS_FlushCache(nexus_heap, payloadDataSize);
 
         GST_DEBUG("decrypt %p->%p %d", block.pSrcAddr, block.pDestAddr, block.blockSize);
-
+        fprintf(stderr, " @@@@@@@@@  decrypt %p->%p %d", block.pSrcAddr, block.pDestAddr, block.blockSize);
         ChkDRM(DRM_Prdy_Reader_DecryptOpaque( &pDecryptContext, &aesCtrInfo, &block, 1) );
 
         NEXUS_FlushCache(nexus_heap, payloadDataSize);

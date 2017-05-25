@@ -1237,14 +1237,15 @@ unsigned MediaPlayerPrivateGStreamerBase::videoDecodedByteCount() const
 PlayreadySession* MediaPlayerPrivateGStreamerBase::prSession() const
 {
     PlayreadySession* session = nullptr;
-#if ENABLE(ENCRYPTED_MEDIA)
+//    fprintf(stderr, "MediaPlayerPrivateGStreamerBase::prSession : %p , %p\n", m_prSession, m_cdmSession);
+//#if ENABLE(ENCRYPTED_MEDIA)
     session = m_prSession;
-#elif ENABLE(ENCRYPTED_MEDIA_V2)
+//#elif ENABLE(ENCRYPTED_MEDIA_V2)
     if (m_cdmSession) {
         CDMPRSessionGStreamer* cdmSession = static_cast<CDMPRSessionGStreamer*>(m_cdmSession);
         session = static_cast<PlayreadySession*>(cdmSession);
     }
-#endif
+//#endif
     return session;
 }
 #endif
@@ -1252,8 +1253,10 @@ PlayreadySession* MediaPlayerPrivateGStreamerBase::prSession() const
 #if USE(PLAYREADY)
 void MediaPlayerPrivateGStreamerBase::emitSession()
 {
+//    fprintf(stderr, "MediaPlayerPrivateGStreamerBase::emitSession\n");
     PlayreadySession* session = prSession();
-    if (!session->ready())
+//    fprintf(stderr, "MediaPlayerPrivateGStreamerBase::emitSession : %p\n", session);
+    if (session && !session->ready())
         return;
 
     gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
