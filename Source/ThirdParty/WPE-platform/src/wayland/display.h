@@ -34,6 +34,7 @@
 #include <xkbcommon/xkbcommon-compose.h>
 #include <xkbcommon/xkbcommon.h>
 #include "ipc.h"
+#include <wayland-client.h>
 
 struct wpe_view_backend;
 
@@ -50,6 +51,8 @@ struct wl_surface;
 struct wl_touch;
 struct xdg_shell;
 struct wl_shell;
+struct wl_event_queue;
+
 
 typedef struct _GSource GSource;
 
@@ -82,7 +85,6 @@ public:
     static Display& singleton();
 
     struct wl_display* display() const { return m_display; }
-
     uint32_t serial() const { return m_seatData.serial; }
 
     struct Interfaces {
@@ -91,6 +93,7 @@ public:
         struct wl_nsc* nsc;
 #endif
         struct wl_seat* seat;
+        struct wl_seat* seat_wrapper;
         struct xdg_shell* xdg;
         struct wl_shell* shell;
     };
@@ -98,7 +101,7 @@ public:
 
     struct SeatData {
         std::unordered_map<struct wl_surface*, struct wpe_view_backend*> inputClients;
-
+        struct wl_event_queue* queue;
         struct {
             struct wl_pointer* object;
             std::pair<struct wl_surface*, struct wpe_view_backend*> target;
@@ -153,7 +156,10 @@ private:
     ~Display();
 
     struct wl_display* m_display;
+    struct wl_display* m_display_wrapper;
+    struct wl_event_queue* m_queue;
     struct wl_registry* m_registry;
+
     Interfaces m_interfaces;
 
     SeatData m_seatData;

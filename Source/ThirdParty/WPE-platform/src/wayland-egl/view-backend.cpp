@@ -26,14 +26,22 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <wpe/input.h>
 #include <wpe/view-backend.h>
-#include "display.h"
+
 #include "ipc.h"
 #include "ipc-waylandegl.h"
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include<stdio.h>
+#include<signal.h>
+#include <map>
 
+#include "display.h"
 #define WIDTH 1280
 #define HEIGHT 720
+
 
 namespace WaylandEGL {
 
@@ -64,6 +72,7 @@ ViewBackend::~ViewBackend()
 {
     ipcHost.deinitialize();
 }
+
 
 void ViewBackend::handleMessage(char* data, size_t size)
 {

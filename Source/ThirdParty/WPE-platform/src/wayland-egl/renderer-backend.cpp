@@ -33,6 +33,13 @@
 #include "ipc-waylandegl.h"
 #include <wayland-client-protocol.h>
 #include <wayland-egl.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include<stdio.h>
+#include<signal.h>
+#include <map>
 
 namespace WaylandEGL {
 
@@ -103,8 +110,8 @@ EGLTarget::EGLTarget(struct wpe_renderer_backend_egl_target* target, int hostFd)
 void EGLTarget::initialize(Backend& backend, uint32_t width, uint32_t height)
 {
     m_backend = &backend;
-    m_surface = wl_compositor_create_surface(m_backend->display.interfaces().compositor);
 
+    m_surface = wl_compositor_create_surface(m_backend->display.interfaces().compositor);
     if (!m_surface) {
         fprintf(stderr, "EGLTarget: unable to create wayland surface\n");
         return;
@@ -154,6 +161,7 @@ void EGLTarget::handleMessage(char* data, size_t size)
     case IPC::WaylandEGL::FrameComplete::code:
     {
         wpe_renderer_backend_egl_target_dispatch_frame_complete(target);
+
         break;
     }
     default:
@@ -224,6 +232,7 @@ struct wpe_renderer_backend_egl_target_interface wayland_egl_renderer_backend_eg
         auto& target = *static_cast<WaylandEGL::EGLTarget*>(data);
 
         wl_display *display = target.m_backend->display.display();
+
         if(display)
             wl_display_flush(display);
 

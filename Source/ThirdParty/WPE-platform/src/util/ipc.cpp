@@ -51,6 +51,7 @@ void Host::initialize(Handler& handler)
         close(sockets[1]);
         return;
     }
+    g_socket_set_blocking(m_socket, FALSE);
 
     m_source = g_socket_create_source(m_socket, G_IO_IN, nullptr);
     g_source_set_callback(m_source, reinterpret_cast<GSourceFunc>(socketCallback), this, nullptr);
