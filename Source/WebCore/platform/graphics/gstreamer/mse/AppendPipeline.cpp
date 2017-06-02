@@ -23,6 +23,12 @@
 
 #if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(MEDIA_SOURCE)
 
+#ifdef LOG_DISABLED
+#undef LOG_DISABLED
+#endif
+
+#define LOG_DISABLED 0
+
 #include "AudioTrackPrivateGStreamer.h"
 #include "GRefPtrGStreamer.h"
 #include "GStreamerMediaDescription.h"
@@ -437,6 +443,9 @@ void AppendPipeline::setAppendState(AppendState newAppendState)
 
     bool ok = false;
     bool mustCheckEndOfAppend = false;
+
+    if( oldAppendState != newAppendState )
+        fprintf(stderr," %4d | %s | %s, %s => %s\n",__LINE__,__FILE__,__FUNCTION__, dumpAppendState(oldAppendState), dumpAppendState(newAppendState));
 
     switch (oldAppendState) {
     case AppendState::NotStarted:
@@ -1152,7 +1161,7 @@ static GstPadProbeReturn appendPipelinePadProbeDebugInformation(GstPad*, GstPadP
 {
     ASSERT(GST_PAD_PROBE_INFO_TYPE(info) & GST_PAD_PROBE_TYPE_BUFFER);
     GstBuffer* buffer = GST_PAD_PROBE_INFO_BUFFER(info);
-    GST_TRACE("%s: buffer of size %" G_GSIZE_FORMAT " going thru", padProbeInformation->description, gst_buffer_get_size(buffer));
+    GST_INFO("%s: buffer of size %" G_GSIZE_FORMAT " going thru", padProbeInformation->description, gst_buffer_get_size(buffer));
     return GST_PAD_PROBE_OK;
 }
 #endif

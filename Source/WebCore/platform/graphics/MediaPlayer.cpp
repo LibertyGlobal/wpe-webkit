@@ -924,35 +924,70 @@ NativeImagePtr MediaPlayer::nativeImageForCurrentTime()
     return m_private->nativeImageForCurrentTime();
 }
 
+const char *_supportsTypeStr( MediaPlayer::SupportsType t ) {
+    switch( t ) {
+        case MediaPlayer::IsNotSupported:
+            return "IsNotSupported";
+        case MediaPlayer::IsSupported:
+            return "IsSupported";
+        case MediaPlayer::MayBeSupported:
+            return "MayBeSupported";
+    }
+    return NULL;
+}
+
 MediaPlayer::SupportsType MediaPlayer::supportsType(const MediaEngineSupportParameters& parameters, const MediaPlayerSupportsTypeClient* client)
 {
-    // 4.8.10.3 MIME types - The canPlayType(type) method must return the empty string if type is a type that the 
-    // user agent knows it cannot render or is the type "application/octet-stream"
-    if (parameters.type == applicationOctetStream())
-        return IsNotSupported;
+    MediaPlayer::SupportsType ret = IsNotSupported;
+#if 0
+    struct MediaEngineSupportParameters {
 
-    const MediaPlayerFactory* engine = bestMediaEngineForSupportParameters(parameters);
-    if (!engine)
-        return IsNotSupported;
+        MediaEngineSupportParameters() { }
 
-#if PLATFORM(COCOA)
-    // YouTube will ask if the HTMLMediaElement canPlayType video/webm, then
-    // video/x-flv, then finally video/mp4, and will then load a URL of the first type
-    // in that list which returns "probably". When Perian is installed,
-    // MediaPlayerPrivateQTKit claims to support both video/webm and video/x-flv, but
-    // due to a bug in Perian, loading media in these formats will sometimes fail on
-    // slow connections. <https://bugs.webkit.org/show_bug.cgi?id=86409>
-    if (client && client->mediaPlayerNeedsSiteSpecificHacks()) {
-        String host = client->mediaPlayerDocumentHost();
-        if ((host.endsWith(".youtube.com", false) || equalLettersIgnoringASCIICase(host, "youtube.com"))
-            && (parameters.type.startsWith("video/webm", false) || parameters.type.startsWith("video/x-flv", false)))
-            return IsNotSupported;
-    }
-#else
-    UNUSED_PARAM(client);
+        String type;
+        String codecs;
+        URL url;
+        String keySystem;
+        unsigned int channels;
+        FloatSize dimension;
+        float framerate;
+        bool isMediaSource { false };
+        bool isMediaStream { false };
+    };
 #endif
 
-    return engine->supportsTypeAndCodecs(parameters);
+    do {
+        // 4.8.10.3 MIME types - The canPlayType(type) method must return the empty string if type is a type that the
+        // user agent knows it cannot render or is the type "application/octet-stream"
+        if (parameters.type == applicationOctetStream())
+            break;
+
+        const MediaPlayerFactory* engine = bestMediaEngineForSupportParameters(parameters);
+        if (!engine)
+            break;
+
+#if PLATFORM(COCOA)
+        // YouTube will ask if the HTMLMediaElement canPlayType video/webm, then
+        // video/x-flv, then finally video/mp4, and will then load a URL of the first type
+        // in that list which returns "probably". When Perian is installed,
+        // MediaPlayerPrivateQTKit claims to support both video/webm and video/x-flv, but
+        // due to a bug in Perian, loading media in these formats will sometimes fail on
+        // slow connections. <https://bugs.webkit.org/show_bug.cgi?id=86409>
+        if (client && client->mediaPlayerNeedsSiteSpecificHacks()) {
+            String host = client->mediaPlayerDocumentHost();
+            if ((host.endsWith(".youtube.com", false) || equalLettersIgnoringASCIICase(host, "youtube.com"))
+                && (parameters.type.startsWith("video/webm", false) || parameters.type.startsWith("video/x-flv", false)))
+                break;
+        }
+#else
+        UNUSED_PARAM(client);
+#endif
+        ret = engine->supportsTypeAndCodecs(parameters);
+    } while( false );
+
+    fprintf( stderr, "     X MediaPlayer::supportsType() X %s, %s, %s, %u, %dx%d, %f, %d, %d => %s\n", parameters.type.ascii().data(), parameters.codecs.ascii().data(), parameters.keySystem.ascii().data(), parameters.channels, (int)(parameters.dimension.width()), (int)(parameters.dimension.height()), parameters.framerate, parameters.isMediaSource, parameters.isMediaStream,_supportsTypeStr(ret));
+
+    return ret;
 }
 
 void MediaPlayer::getSupportedTypes(HashSet<String, ASCIICaseInsensitiveHash>& types)

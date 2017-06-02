@@ -40,6 +40,9 @@ namespace WebCore {
 
 static std::optional<Vector<uint8_t>> gcryptEncrypt(const Vector<uint8_t>& key, const Vector<uint8_t>& iv, Vector<uint8_t>&& plainText)
 {
+    notImplemented();
+    return std::nullopt;
+#if 0
     auto algorithm = PAL::GCrypt::aesAlgorithmForKeySize(key.size() * 8);
     if (!algorithm)
         return std::nullopt;
@@ -77,10 +80,14 @@ static std::optional<Vector<uint8_t>> gcryptEncrypt(const Vector<uint8_t>& key, 
     }
 
     return WTFMove(output);
+#endif
 }
 
 static std::optional<Vector<uint8_t>> gcryptDecrypt(const Vector<uint8_t>& key, const Vector<uint8_t>& iv, Vector<uint8_t>&& cipherText)
 {
+    notImplemented();
+    return std::nullopt;
+#if 0
     auto algorithm = PAL::GCrypt::aesAlgorithmForKeySize(key.size() * 8);
     if (!algorithm)
         return std::nullopt;
@@ -118,6 +125,7 @@ static std::optional<Vector<uint8_t>> gcryptDecrypt(const Vector<uint8_t>& key, 
     }
 
     return WTFMove(output);
+#endif
 }
 
 void CryptoAlgorithmAES_CFB::platformEncrypt(std::unique_ptr<CryptoAlgorithmParameters>&& parameters, Ref<CryptoKey>&& key, Vector<uint8_t>&& plainText, VectorCallback&& callback, ExceptionCallback&& exceptionCallback, ScriptExecutionContext& context, WorkQueue& workQueue)

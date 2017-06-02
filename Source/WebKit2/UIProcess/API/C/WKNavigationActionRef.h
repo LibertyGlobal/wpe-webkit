@@ -27,6 +27,8 @@
 #define WKNavigationActionRef_h
 
 #include <WebKit/WKBase.h>
+#include <WebKit/WKEvent.h>
+#include <WebKit/WKPageLoadTypes.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,6 +36,14 @@ extern "C" {
 
 WK_EXPORT WKTypeID WKNavigationActionGetTypeID();
 
+WK_EXPORT WKFrameNavigationType WKNavigationActionGetNavigationType(WKNavigationActionRef navigationAction);
+WK_EXPORT WKEventModifiers WKNavigationActionGetEventModifiers(WKNavigationActionRef navigationAction);
+WK_EXPORT WKEventMouseButton WKNavigationActionGetEventMouseButton(WKNavigationActionRef navigationAction);
+bool WKNavigationActionGetCanHandleRequest(WKNavigationActionRef navigationActionRef);
+bool WKNavigationActionGetShouldOpenExternalSchemes(WKNavigationActionRef navigationActionRef);
+bool WKNavigationActionGetShouldOpenAppLinks(WKNavigationActionRef navigationActionRef);
+bool WKNavigationActionGetShouldPerformDownload(WKNavigationActionRef navigationActionRef);
+bool WKNavigationActionGetIsProcessingUserGesture(WKNavigationActionRef navigationActionRef);
 #ifdef __cplusplus
 }
 #endif

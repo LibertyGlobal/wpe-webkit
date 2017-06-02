@@ -25,9 +25,11 @@
 #include "WebKitPlayReadyDecryptorGStreamer.h"
 #include "PlayreadySession.h"
 #include <gst/base/gstbytereader.h>
+#include <gstsvpmeta.h>
 
 #define WEBKIT_MEDIA_PLAYREADY_DECRYPT_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), WEBKIT_TYPE_MEDIA_PLAYREADY_DECRYPT, WebKitMediaPlayReadyDecryptPrivate))
-struct _WebKitMediaPlayReadyDecryptPrivate {
+struct _WebKitMediaPlayReadyDecryptPrivate
+{
     WebCore::PlayreadySession* sessionMetaData;
 };
 
@@ -100,6 +102,10 @@ static gboolean webKitMediaPlayReadyDecryptorHandleKeyResponse(WebKitMediaCommon
 
     const GstStructure* structure = gst_event_get_structure(event);
     const char* label = "playready-session";
+
+    if (gst_structure_has_name(structure, "playready-session"))
+        g_print("XXXXX Found playready-session\n");
+
     if (!gst_structure_has_name(structure, label))
         return FALSE;
 
@@ -109,6 +115,28 @@ static gboolean webKitMediaPlayReadyDecryptorHandleKeyResponse(WebKitMediaCommon
     priv->sessionMetaData = reinterpret_cast<WebCore::PlayreadySession*>(g_value_get_pointer(value));
     return TRUE;
 }
+
+// static void buffer_release_fn(GstStructure *s)
+// {
+//     GST_DEBUG("struct=%p", s);
+//     if (gst_structure_has_name(s, GST_SVP_SYSTEM_ID_CAPS_FIELD))
+//     {
+//         GstBuffer *samples;
+//         void* secure;
+//         gboolean valid = gst_structure_get(s, "secure_buffer", G_TYPE_POINTER, &secure, "chunks_info", GST_TYPE_BUFFER, &samples, nullptr);
+//         GST_DEBUG("secure=%p, samples=%p", secure, samples);
+//         if (valid)
+//         {
+            // freed internally - see patch 0018
+//             if (secure != NULL)
+//                 WebCore::PlayreadySession::freeDecrypted(secure);
+//             if (samples != NULL)
+//                 gst_buffer_unref(samples);
+//         }
+//     }
+//     else
+//         GST_ERROR("no name " GST_SVP_SYSTEM_ID_CAPS_FIELD);
+// }
 
 static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryptionDecrypt* self, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer)
 {
@@ -124,23 +152,33 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
     uint8_t* encryptedData;
     uint8_t* fEncryptedData;
     unsigned index = 0;
-    unsigned total = 0;
+//    unsigned total = 0;
+    void* decrypted = NULL;
+    guint32 *svpSubsamplesBuffer = nullptr;
 
-    if (!gst_buffer_map(ivBuffer, &ivMap, GST_MAP_READ)) {
+    GST_DEBUG_OBJECT(self, "subsamples: buffer=%p, count=%d", subSamplesBuffer, subSampleCount);
+
+    if (!gst_buffer_map(ivBuffer, &ivMap, GST_MAP_READ))
+    {
         GST_ERROR_OBJECT(self, "Failed to map IV");
         return false;
     }
 
     bufferMapped = gst_buffer_map(buffer, &map, static_cast<GstMapFlags>(GST_MAP_READWRITE));
-    if (!bufferMapped) {
+    if (!bufferMapped)
+    {
         gst_buffer_unmap(ivBuffer, &ivMap);
         GST_ERROR_OBJECT(self, "Failed to map buffer");
         return false;
     }
 
-    if (subSamplesBuffer) {
+    GST_DEBUG_OBJECT(self, "gstbuffer: %p %d", map.data, map.size);
+
+    if (subSamplesBuffer)
+    {
         subsamplesBufferMapped = gst_buffer_map(subSamplesBuffer, &subSamplesMap, GST_MAP_READ);
-        if (!subsamplesBufferMapped) {
+        if (!subsamplesBufferMapped)
+        {
             GST_ERROR_OBJECT(self, "Failed to map subsample buffer");
             gst_buffer_unmap(ivBuffer, &ivMap);
             gst_buffer_unmap(buffer, &map);
@@ -150,7 +188,8 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
         reader = gst_byte_reader_new(subSamplesMap.data, subSamplesMap.size);
 
         // Find out the total size of the encrypted data.
-        for (position = 0; position < subSampleCount; position++) {
+        for (position = 0; position < subSampleCount; position++)
+        {
             gst_byte_reader_get_uint16_be(reader, &inClear);
             gst_byte_reader_get_uint32_be(reader, &inEncrypted);
             totalEncrypted += inEncrypted;
@@ -160,57 +199,90 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
         // Build a new buffer storing the entire encrypted cipher.
         encryptedData = (uint8_t*) g_malloc(totalEncrypted);
         fEncryptedData = encryptedData;
-        for (position = 0; position < subSampleCount; position++) {
+        guint32 *svpp = svpSubsamplesBuffer = (guint32*) g_malloc(subSampleCount * 3 * sizeof(guint32));
+
+        for (position = 0; position < subSampleCount; position++)
+        {
             gst_byte_reader_get_uint16_be(reader, &inClear);
             gst_byte_reader_get_uint32_be(reader, &inEncrypted);
             memcpy(encryptedData, map.data + index + inClear, inEncrypted);
+            *svpp++ = inClear;
+            *svpp++ = inEncrypted;
+            *svpp++ = index;
+            GST_DEBUG_OBJECT(self, "subsample[%d]  %d/%d/%d", position, inClear, inEncrypted, index);
             index += inClear + inEncrypted;
             encryptedData += inEncrypted;
         }
-        gst_byte_reader_set_pos(reader, 0);
+        //gst_byte_reader_set_pos(reader, 0);
+        for (unsigned i = 0 ; i < subSampleCount; i++)
+            GST_DEBUG_OBJECT(self, "svpSubsamplesBuffer: i=%d  %d/%d/%d", i, svpSubsamplesBuffer[3*i], svpSubsamplesBuffer[3*i+1], svpSubsamplesBuffer[3*i+2]);
 
         // Decrypt cipher.
         ASSERT(priv->sessionMetaData);
-        if ((errorCode = priv->sessionMetaData->processPayload(static_cast<const void*>(ivMap.data), static_cast<uint32_t>(ivMap.size), static_cast<void*>(fEncryptedData), static_cast<uint32_t>(totalEncrypted)))) {
+        if ((errorCode = priv->sessionMetaData->processPayload(static_cast<const void*>(ivMap.data), static_cast<uint32_t>(ivMap.size), static_cast<void*>(fEncryptedData), static_cast<uint32_t>(totalEncrypted), &decrypted)))
+        {
             GST_WARNING_OBJECT(self, "ERROR - packet decryption failed [%d]", errorCode);
             g_free(fEncryptedData);
+            g_free(svpSubsamplesBuffer);
             gst_byte_reader_free(reader);
             gst_buffer_unmap(buffer, &map);
             gst_buffer_unmap(subSamplesBuffer, &subSamplesMap);
             gst_buffer_unmap(ivBuffer, &ivMap);
             return false;
         }
-
-        // Re-build sub-sample data.
-        index = 0;
-        encryptedData = fEncryptedData;
-        for (position = 0; position < subSampleCount; position++) {
-            gst_byte_reader_get_uint16_be(reader, &inClear);
-            gst_byte_reader_get_uint32_be(reader, &inEncrypted);
-
-            memcpy(map.data + total + inClear, encryptedData + index, inEncrypted);
-            index += inEncrypted;
-            total += inClear + inEncrypted;
-        }
-
         g_free(fEncryptedData);
         gst_buffer_unmap(subSamplesBuffer, &subSamplesMap);
-    } else {
+    }
+    else
+    {
+
+        svpSubsamplesBuffer = (guint32*) g_malloc(3 * sizeof(guint32));
+        svpSubsamplesBuffer[0] = 0;
+        svpSubsamplesBuffer[1] = map.size;
+        svpSubsamplesBuffer[2] = 0;
+        subSampleCount = 1;
+
+        for (unsigned i = 0 ; i < subSampleCount; i++)
+            GST_DEBUG_OBJECT(self, "svpSubsamplesBuffer: i=%d  %d/%d/%d", i, svpSubsamplesBuffer[3*i], svpSubsamplesBuffer[3*i+1], svpSubsamplesBuffer[3*i+2]);
+
         // Decrypt cipher.
-        ASSERT(priv->sessionMetaData);
-        if ((errorCode = priv->sessionMetaData->processPayload(static_cast<const void*>(ivMap.data), static_cast<uint32_t>(ivMap.size), static_cast<void*>(map.data), static_cast<uint32_t>(map.size)))) {
+//        ASSERT(priv->sessionMetaData);
+        if ((errorCode = priv->sessionMetaData->processPayload(static_cast<const void*>(ivMap.data), static_cast<uint32_t>(ivMap.size), static_cast<void*>(map.data), static_cast<uint32_t>(map.size), &decrypted)))
+        {
             GST_WARNING_OBJECT(self, "ERROR - packet decryption failed [%d]", errorCode);
             g_free(fEncryptedData);
+            g_free(svpSubsamplesBuffer);
             gst_buffer_unmap(buffer, &map);
             gst_buffer_unmap(ivBuffer, &ivMap);
             return false;
         }
     }
 
+
+    if (decrypted != NULL)
+    {
+        GstBuffer* b = gst_buffer_new_wrapped(svpSubsamplesBuffer, subSampleCount * 3 * sizeof(guint32));
+        GST_DEBUG_OBJECT(self, "decrypted=%p, subsample_buffer=%p, mem=%p, count=%d", decrypted, b, svpSubsamplesBuffer, subSampleCount);
+//         fprintf(stderr, "decrypted=%p, subsample_buffer=%p, mem=%p, count=%d\n", decrypted, b, svpSubsamplesBuffer, subSampleCount);
+        gst_buffer_add_svp_meta(buffer,
+                                gst_structure_new(GST_SVP_SYSTEM_ID_CAPS_FIELD,
+                                        "secure_buffer", G_TYPE_POINTER, decrypted,
+                                        "chunks_info", GST_TYPE_BUFFER, b,
+                                        "chunks_cnt", G_TYPE_UINT, subSampleCount, nullptr),
+                                nullptr/*buffer_release_fn*/);
+    }
+    else
+    {
+        GST_WARNING_OBJECT(self, "decrypted=%p, mem=%p, count=%d", decrypted, svpSubsamplesBuffer, subSampleCount);
+        g_free(svpSubsamplesBuffer);
+    }
+
     if (reader)
         gst_byte_reader_free(reader);
+
     gst_buffer_unmap(buffer, &map);
     gst_buffer_unmap(ivBuffer, &ivMap);
+
     return true;
 }
 

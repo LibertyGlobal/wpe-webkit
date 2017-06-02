@@ -172,15 +172,54 @@ CDMInstance::SuccessValue CDMInstancePlayReady::setServerCertificate(Ref<SharedB
     return Failed;
 }
 
+const char msplrdyuuid[16] =    { 0x9a, 0x04, 0xf0, 0x79
+                                , 0x98, 0x40
+                                , 0x42, 0x86
+                                , 0xab, 0x92
+                                , 0xe6, 0x5b, 0xe0, 0x88, 0x5f, 0x95 };
+
+inline bool getPSSHPayload( const uint8_t *initData, int initDataLength, const char uuid[16], const uint8_t **dataBlock, int *dataLength )
+{
+    while( initDataLength >= 4 )
+    {
+        int len = 0;
+        len |= initData[0]; len <<= 8;
+        len |= initData[1]; len <<= 8;
+        len |= initData[2]; len <<= 8;
+        len |= initData[3];
+        if( initDataLength < len )                  // malformed block
+            return false;
+        if( len < 32 )                              // block with malformed uuid
+            return false;
+        if( !memcmp( initData + 12, uuid, 16 ) )    // found it
+        {
+            *dataBlock  = initData + 32;
+            *dataLength = len - 32;
+            return true;
+        }
+        initData        += len;                     // next block
+        initDataLength  -= len;
+    }
+    return false;
+}
+
 void CDMInstancePlayReady::requestLicense(LicenseType, const AtomicString& initDataType, Ref<SharedBuffer>&& initData, LicenseCallback callback)
 {
     fprintf(stderr, "NotImplemented: CDMInstancePlayReady::%s()\n", __func__);
-
-    String destinationURL;
-    unsigned short errorCode = 0;
-    uint32_t systemCode = 0;
-    RefPtr<Uint8Array> initDataArray = Uint8Array::create(reinterpret_cast<const uint8_t*>(initData->data()), initData->size());
-    auto result = m_prSession->playreadyGenerateKeyRequest(initDataArray.get(), String(), destinationURL, errorCode, systemCode);
+    const uint8_t  *initBlock   = NULL;
+    int             initLength  = 0;
+    unsigned short  errorCode   = 0;
+    uint32_t        systemCode  = 0;
+    String              destinationURL;
+    RefPtr<Uint8Array>  result;
+    if( !getPSSHPayload( reinterpret_cast<const uint8_t*>(initData->data()), initData->size(), msplrdyuuid, &initBlock, &initLength ) )
+    {
+        initBlock = reinterpret_cast<const uint8_t*>(initData->data());
+        initLength = initData->size();
+    }
+    fprintf(stderr," %4d | %s\n",__LINE__,__FILE__);
+    RefPtr<Uint8Array> initDataArray = Uint8Array::create( initBlock, initLength );
+    result = m_prSession->playreadyGenerateKeyRequest(initDataArray.get(), String(), destinationURL, errorCode, systemCode);
 
     if (!result) {
         callback(SharedBuffer::create(), String(), false, Failed);
