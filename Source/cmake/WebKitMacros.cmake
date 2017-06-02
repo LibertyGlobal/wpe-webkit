@@ -293,7 +293,7 @@ endmacro()
 
 macro(WEBKIT_FRAMEWORK _target)
     include_directories(${${_target}_INCLUDE_DIRECTORIES})
-    include_directories(SYSTEM ${${_target}_SYSTEM_INCLUDE_DIRECTORIES})
+    include_directories(${${_target}_SYSTEM_INCLUDE_DIRECTORIES})
     add_library(${_target} ${${_target}_LIBRARY_TYPE}
         ${${_target}_HEADERS}
         ${${_target}_SOURCES}

@@ -35,3 +35,43 @@ WKTypeID WKNavigationActionGetTypeID()
 {
     return toAPI(API::NavigationAction::APIType);
 }
+
+WK_EXPORT WKFrameNavigationType WKNavigationActionGetNavigationType(WKNavigationActionRef navigationActionRef)
+{
+    return toAPI(toImpl(navigationActionRef)->navigationType());
+}
+
+WK_EXPORT WKEventModifiers WKNavigationActionGetEventModifiers(WKNavigationActionRef navigationActionRef)
+{
+    return toAPI(toImpl(navigationActionRef)->modifiers());
+
+}
+WK_EXPORT WKEventMouseButton WKNavigationActionGetEventMouseButton(WKNavigationActionRef navigationActionRef)
+{
+    return toAPI(toImpl(navigationActionRef)->mouseButton());
+}
+
+bool WKNavigationActionGetCanHandleRequest(WKNavigationActionRef navigationActionRef)
+{
+    return toImpl(navigationActionRef)->canHandleRequest();
+}
+
+bool WKNavigationActionGetShouldOpenExternalSchemes(WKNavigationActionRef navigationActionRef)
+{
+    return toImpl(navigationActionRef)->shouldOpenExternalSchemes();
+}
+
+bool WKNavigationActionGetShouldOpenAppLinks(WKNavigationActionRef navigationActionRef)
+{
+    return toImpl(navigationActionRef)->shouldOpenAppLinks();
+}
+
+bool WKNavigationActionGetShouldPerformDownload(WKNavigationActionRef navigationActionRef)
+{
+    return toImpl(navigationActionRef)->shouldPerformDownload();
+}
+
+bool WKNavigationActionGetIsProcessingUserGesture(WKNavigationActionRef navigationActionRef)
+{
+    return toImpl(navigationActionRef)->isProcessingUserGesture();
+}
