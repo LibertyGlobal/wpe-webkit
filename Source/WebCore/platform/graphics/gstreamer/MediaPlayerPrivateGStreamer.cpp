@@ -317,7 +317,7 @@ void MediaPlayerPrivateGStreamer::commitLoad()
     updateStates();
 }
 
-#if PLATFORM(BCM_NEXUS)
+#if PLATFORM(BCM_NEXUS) || 1 // GENERIC RDK
 // utility function for bcm nexus seek functionality
 static GstElement* findVideoDecoder(GstElement *element)
 {
@@ -401,7 +401,7 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
     } else if (m_canFallBackToLastFinishedSeekPosition)
         result = m_seekTime;
 
-#if PLATFORM(BCM_NEXUS)
+#if PLATFORM(BCM_NEXUS) || 1
     // implement getting pts time from broadcom decoder directly for seek functionality
     gint64 currentPts = -1;
     /*GstElement**/ videoDec = findVideoDecoder(m_pipeline.get());
@@ -2093,7 +2093,7 @@ GstElement* MediaPlayerPrivateGStreamer::createAudioSink()
 
     g_signal_connect_swapped(m_autoAudioSink.get(), "child-added", G_CALLBACK(setAudioStreamPropertiesCallback), this);
 
-#if PLATFORM(BCM_NEXUS) || PLATFORM(INTEL_CE)
+#if PLATFORM(BCM_NEXUS) || PLATFORM(INTEL_CE) || 1 // GENERIC RDK
     return m_autoAudioSink.get();
 #endif
 

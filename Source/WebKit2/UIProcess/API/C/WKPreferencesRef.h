@@ -312,6 +312,10 @@ WK_EXPORT bool WKPreferencesGetWebSecurityEnabled(WKPreferencesRef preferences);
 WK_EXPORT void WKPreferencesSetScrollToFocusedElementEnabled(WKPreferencesRef preferences, bool enabled);
 WK_EXPORT bool WKPreferencesGetScrollToFocusedElementEnabled(WKPreferencesRef preferences);
 
+// Default to false.
+WK_EXPORT void WKPreferencesSetAllowScriptsToCloseWindows(WKPreferencesRef preferencesRef, bool flag);
+WK_EXPORT bool WKPreferencesGetAllowScriptsToCloseWindows(WKPreferencesRef preferencesRef);
+
 #ifdef __cplusplus
 }
 #endif
