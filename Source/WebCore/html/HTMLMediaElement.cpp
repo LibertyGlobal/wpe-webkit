@@ -183,7 +183,18 @@ static void clearFlags(unsigned& value, unsigned flags)
 {
     value &= ~flags;
 }
-    
+
+#ifdef LOG
+#undef LOG
+#endif
+
+#ifdef LOG_DISABLED
+#undef LOG_DISABLED
+#endif
+
+#define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
+#define LOG_DISABLED 0
+
 #if !LOG_DISABLED
 static String urlForLoggingMedia(const URL& url)
 {
@@ -227,13 +238,13 @@ static String actionName(HTMLMediaElementEnums::DelayedActionType action)
 #ifndef LOG_MEDIA_EVENTS
 // Default to not logging events because so many are generated they can overwhelm the rest of 
 // the logging.
-#define LOG_MEDIA_EVENTS 0
+#define LOG_MEDIA_EVENTS 1
 #endif
 
 #ifndef LOG_CACHED_TIME_WARNINGS
 // Default to not logging warnings about excessive drift in the cached media time because it adds a
 // fair amount of overhead and logging.
-#define LOG_CACHED_TIME_WARNINGS 0
+#define LOG_CACHED_TIME_WARNINGS 1
 #endif
 
 #if ENABLE(MEDIA_SOURCE)
@@ -2632,6 +2643,7 @@ MediaKeys* HTMLMediaElement::mediaKeys() const
 
 void HTMLMediaElement::setMediaKeys(MediaKeys* mediaKeys, Ref<DeferredPromise>&& promise)
 {
+    LOG(Medis,"HTMLMediaElement::%s",__FUNCTION__);
     // https://w3c.github.io/encrypted-media/#dom-htmlmediaelement-setmediakeys
     // W3C Editor's Draft 09 November 2016
 
@@ -2641,6 +2653,7 @@ void HTMLMediaElement::setMediaKeys(MediaKeys* mediaKeys, Ref<DeferredPromise>&&
         return;
     }
 
+    LOG(Medis,"HTMLMediaElement::%s",__FUNCTION__);
     // 2. If this object's attaching media keys value is true, return a promise rejected with an InvalidStateError.
     if (m_attachingMediaKeys) {
         promise->reject(INVALID_STATE_ERR);
@@ -2681,7 +2694,9 @@ void HTMLMediaElement::setMediaKeys(MediaKeys* mediaKeys, Ref<DeferredPromise>&&
             // 5.3.3. Queue a task to run the Attempt to Resume Playback If Necessary algorithm on the media element.
             // FIXME: ^
 
+            LOG(Medis,"HTMLMediaElement::%s",__FUNCTION__);
             mediaKeys->attachCDMClient(*this);
+            LOG(Medis,"HTMLMediaElement::%s",__FUNCTION__);
         }
 
         // 5.4. Set the mediaKeys attribute to mediaKeys.
@@ -2692,11 +2707,13 @@ void HTMLMediaElement::setMediaKeys(MediaKeys* mediaKeys, Ref<DeferredPromise>&&
         promise->resolve();
     });
 
+    LOG(Medis,"HTMLMediaElement::%s",__FUNCTION__);
     // 6. Return promise.
 }
 
 bool HTMLMediaElement::mediaPlayerInitializationDataEncountered(const String& initDataType, RefPtr<ArrayBuffer>&& initData)
 {
+    LOG(Media,"HTMLMediaElement::%s(), %s",__FUNCTION__,initDataType.ascii().data());
     // https://w3c.github.io/encrypted-media/#initdata-encountered
     // W3C Editor's Draft 09 November 2016
 
@@ -2716,6 +2733,7 @@ bool HTMLMediaElement::mediaPlayerInitializationDataEncountered(const String& in
     MediaEncryptedEventInit initializer { initDataType, WTFMove(initData) };
     m_asyncEventQueue.enqueueEvent(MediaEncryptedEvent::create(eventNames().encryptedEvent, initializer, Event::IsTrusted::Yes));
 
+    LOG(Media,"HTMLMediaElement::%s()",__FUNCTION__);
     return true;
 }
 
@@ -3109,7 +3127,7 @@ double HTMLMediaElement::currentTime() const
 MediaTime HTMLMediaElement::currentMediaTime() const
 {
 #if LOG_CACHED_TIME_WARNINGS
-    static const MediaTime minCachedDeltaForWarning = MediaTime::create(1, 100);
+    static const MediaTime minCachedDeltaForWarning = MediaTime::createWithDouble(1, 100);
 #endif
 
     if (!m_player)
@@ -3143,14 +3161,14 @@ MediaTime HTMLMediaElement::currentMediaTime() const
 #if LOG_CACHED_TIME_WARNINGS
             MediaTime delta = adjustedCacheTime - m_player->currentTime();
             if (delta > minCachedDeltaForWarning)
-                LOG(Media, "HTMLMediaElement::currentTime(%p) - WARNING, cached time is %f seconds off of media time when playing", this, delta);
+                LOG(Media, "HTMLMediaElement::currentTime(%p) - WARNING, cached time is %f seconds off of media time when playing", this, delta.toFloat());
 #endif
             return adjustedCacheTime;
         }
     }
 
 #if LOG_CACHED_TIME_WARNINGS
-    if (maximumDurationToCacheMediaTime && now > m_minimumClockTimeToUpdateCachedTime && m_cachedTime != MediaPlayer::invalidTime()) {
+    if (maximumDurationToCacheMediaTime && now > m_minimumClockTimeToUpdateCachedTime && m_cachedTime.toDouble() != MediaPlayer::invalidTime()) {
         double clockDelta = now - m_clockTimeAtLastCachedTimeUpdate;
         MediaTime delta = m_cachedTime + MediaTime::createWithDouble(effectivePlaybackRate() * clockDelta) - m_player->currentTime();
         LOG(Media, "HTMLMediaElement::currentTime(%p) - cached time was %s seconds off of media time when it expired", this, toString(delta).utf8().data());
@@ -3201,6 +3219,7 @@ MediaTime HTMLMediaElement::durationMediaTime() const
 
 bool HTMLMediaElement::paused() const
 {
+    LOG(Media,"HTMLMediaElement::%s(), %s",__FUNCTION__,m_paused?"true":"false");
     // As of this writing, JavaScript garbage collection calls this function directly. In the past
     // we had problems where this was called on an object after a bad cast. The assertion below
     // made our regression test detect the problem, so we should keep it because of that. But note

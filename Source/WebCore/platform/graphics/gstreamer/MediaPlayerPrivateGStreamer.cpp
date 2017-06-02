@@ -325,7 +325,7 @@ static GstElement* findVideoDecoder(GstElement *element)
 {
     GstElement *re = NULL;
     if (GST_IS_BIN(element)) {
-        GstIterator* it = gst_bin_iterate_elements(GST_BIN(element));
+        GstIterator* it = gst_bin_iterate_recurse(GST_BIN(element));
         GValue item = G_VALUE_INIT;
         bool done = false;
         while(!done) {
@@ -333,7 +333,10 @@ static GstElement* findVideoDecoder(GstElement *element)
                 case GST_ITERATOR_OK:
                 {
                     GstElement *next = GST_ELEMENT(g_value_get_object(&item));
-                    done = (re = findVideoDecoder(next)) != NULL;
+                    if( strstr(gst_element_get_name(next),"videodecoder") ) {
+                        re = next;
+                        done = true;
+                    }
                     g_value_reset (&item);
                     break;
                 }
@@ -348,8 +351,7 @@ static GstElement* findVideoDecoder(GstElement *element)
         }
         g_value_unset (&item);
         gst_iterator_free(it);
-    } else if (GST_IS_VIDEO_DECODER(element))
-        re = element;
+    }
     return re;
 }
 #endif
@@ -1958,7 +1960,7 @@ static HashSet<String, ASCIICaseInsensitiveHash>& mimeTypeSet()
         initializeGStreamerAndRegisterWebKitElements();
         HashSet<String, ASCIICaseInsensitiveHash> set;
 
-#if PLATFORM(BCM_NEXUS) || PLATFORM(BROADCOM)
+#if PLATFORM(BCM_NEXUS) || PLATFORM(BROADCOM) || 1 // GENERIC RDK
         GList* audioDecoderFactories = gst_element_factory_list_get_elements(GST_ELEMENT_FACTORY_TYPE_PARSER | GST_ELEMENT_FACTORY_TYPE_MEDIA_AUDIO, GST_RANK_MARGINAL);
         GList* videoDecoderFactories = gst_element_factory_list_get_elements(GST_ELEMENT_FACTORY_TYPE_PARSER | GST_ELEMENT_FACTORY_TYPE_MEDIA_VIDEO, GST_RANK_MARGINAL);
 #else
@@ -2378,7 +2380,7 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin()
             g_object_set(m_pipeline.get(), "audio-filter", scale, nullptr);
     }
 
-    if (!m_renderingCanBeAccelerated) {
+    if (!m_renderingCanBeAccelerated && 0) {
         // If not using accelerated compositing, let GStreamer handle
         // the image-orientation tag.
         GstElement* videoFlip = gst_element_factory_make("videoflip", nullptr);

@@ -116,26 +116,27 @@ static gboolean webKitMediaPlayReadyDecryptorHandleKeyResponse(WebKitMediaCommon
     return TRUE;
 }
 
-static void buffer_release_fn(GstStructure *s)
-{
-    GST_DEBUG("struct=%p", s);
-    if (gst_structure_has_name(s, GST_SVP_SYSTEM_ID_CAPS_FIELD))
-    {
-        GstBuffer *samples;
-        void* secure;
-        gboolean valid = gst_structure_get(s, "secure_buffer", G_TYPE_POINTER, &secure, "chunks_info", GST_TYPE_BUFFER, &samples, nullptr);
-        GST_DEBUG("secure=%p, samples=%p", secure, samples);
-        if (valid)
-        {
-            if (secure != NULL)
-                WebCore::PlayreadySession::freeDecrypted(secure);
-            if (samples != NULL)
-                gst_buffer_unref(samples);
-        }
-    }
-    else
-        GST_ERROR("no name " GST_SVP_SYSTEM_ID_CAPS_FIELD);
-}
+// static void buffer_release_fn(GstStructure *s)
+// {
+//     GST_DEBUG("struct=%p", s);
+//     if (gst_structure_has_name(s, GST_SVP_SYSTEM_ID_CAPS_FIELD))
+//     {
+//         GstBuffer *samples;
+//         void* secure;
+//         gboolean valid = gst_structure_get(s, "secure_buffer", G_TYPE_POINTER, &secure, "chunks_info", GST_TYPE_BUFFER, &samples, nullptr);
+//         GST_DEBUG("secure=%p, samples=%p", secure, samples);
+//         if (valid)
+//         {
+            // freed internally - see patch 0018
+//             if (secure != NULL)
+//                 WebCore::PlayreadySession::freeDecrypted(secure);
+//             if (samples != NULL)
+//                 gst_buffer_unref(samples);
+//         }
+//     }
+//     else
+//         GST_ERROR("no name " GST_SVP_SYSTEM_ID_CAPS_FIELD);
+// }
 
 static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryptionDecrypt* self, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer)
 {
@@ -262,12 +263,13 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
     {
         GstBuffer* b = gst_buffer_new_wrapped(svpSubsamplesBuffer, subSampleCount * 3 * sizeof(guint32));
         GST_DEBUG_OBJECT(self, "decrypted=%p, subsample_buffer=%p, mem=%p, count=%d", decrypted, b, svpSubsamplesBuffer, subSampleCount);
+//         fprintf(stderr, "decrypted=%p, subsample_buffer=%p, mem=%p, count=%d\n", decrypted, b, svpSubsamplesBuffer, subSampleCount);
         gst_buffer_add_svp_meta(buffer,
                                 gst_structure_new(GST_SVP_SYSTEM_ID_CAPS_FIELD,
                                         "secure_buffer", G_TYPE_POINTER, decrypted,
                                         "chunks_info", GST_TYPE_BUFFER, b,
                                         "chunks_cnt", G_TYPE_UINT, subSampleCount, nullptr),
-                                buffer_release_fn);
+                                nullptr/*buffer_release_fn*/);
     }
     else
     {

@@ -28,6 +28,7 @@
 
 #if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(MEDIA_SOURCE)
 
+#include "CDMInstancePlayReady.h"
 #include "AppendPipeline.h"
 #include "AudioTrackPrivateGStreamer.h"
 #include "GStreamerUtilities.h"
@@ -795,8 +796,8 @@ MediaPlayer::SupportsType MediaPlayerPrivateGStreamerMSE::supportsType(const Med
         return result;
 
     // Disable VPX/Opus on MSE for now, mp4/avc1 seems way more reliable currently.
-    if (parameters.type.endsWith("webm"))
-        return result;
+//     if (parameters.type.endsWith("webm"))
+//         return result;
 
     // YouTube TV provides empty types for some videos and we want to be selected as best media engine for them.
     if (parameters.type.isEmpty()) {
@@ -852,17 +853,28 @@ void MediaPlayerPrivateGStreamerMSE::emitPlayReadySession(PlayreadySession* sess
 #endif
 
 #if ENABLE(ENCRYPTED_MEDIA)
-void MediaPlayerPrivateGStreamerMSE::attemptToDecryptWithInstance(const CDMInstance&)
+void MediaPlayerPrivateGStreamerMSE::attemptToDecryptWithInstance(const CDMInstance& baseInstance)
 {
-#if 0
-    if (keys.isEmpty())
+    char buf[ 32 ];
+    int i = 0;
+    sprintf(buf,"pipeline%02d",i++);
+    gst_debug_bin_to_dot_file(GST_BIN(m_pipeline.get()), GST_DEBUG_GRAPH_SHOW_ALL, buf);
+#if USE(PLAYREADY)
+    auto& instance = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
+    auto session = &(instance.prSession());
+
+    if (!session->ready())
         return;
 
-    auto& keyValue = keys.first().second;
-    GRefPtr<GstBuffer> buffer(gst_buffer_new_wrapped(g_memdup(keyValue->data(), keyValue->size()), keyValue->size()));
+    for (auto it : m_appendPipelinesMap)
+        /*if (session->hasPipeline(it.value->pipeline()))*/ {
+            sprintf(buf,"pipeline%02d",i++);
+            gst_debug_bin_to_dot_file(GST_BIN(it.value->pipeline()), GST_DEBUG_GRAPH_SHOW_ALL, buf);
+            gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
+                                                                                gst_structure_new("playready-session", "session", G_TYPE_POINTER, session, nullptr)));
+            it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
+        }
 
-    for (auto iterator : m_appendPipelinesMap)
-        iterator.value->dispatchDecryptionKey(buffer.get());
 #endif
 }
 #endif

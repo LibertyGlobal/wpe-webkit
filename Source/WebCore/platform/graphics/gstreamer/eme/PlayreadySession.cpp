@@ -24,21 +24,20 @@
 #include <stdlib.h>
 #include <gst/gst.h>
 
-
 #include "config.h"
 #include "PlayreadySession.h"
 
 #if USE(PLAYREADY)
 //#include "MediaKeyError.h"
 //#include "MediaPlayerPrivateGStreamer.h"
-#include "UUID.h"
+#include "wtf/UUID.h"
 
 #include <bkni.h>
 #include <nexus_dma.h>
 
 #include <runtime/JSCInlines.h>
 #include <runtime/TypedArrayInlines.h>
-#include <wtf/PassRefPtr.h>
+// #include <wtf/PassRefPtr.h>
 #include <wtf/text/CString.h>
 
 #include <nexus_dma.h>
@@ -112,8 +111,30 @@ DRM_RESULT DRM_CALL PlayreadySession::_PolicyCallback(const DRM_VOID *f_pvOutput
     return DRM_SUCCESS;
 }*/
 
+inline void dumpBuffer( const unsigned char *buf, int len ) {
+    return;
+    char out[128];
+    int l, i, m, o = 0;
+    while( len > 0 ) {
+        l = 0;
+        m = len > 16 ? 16 : len;
+        l += snprintf(out+l,sizeof(out)-l," %04x: ", o);
+        for( i = 0; i < m; ++i )
+            l += snprintf(out+l,sizeof(out)-l,(i==8)?"   %02x ":"%02x ", buf[i]);
+        while( l < 64 )
+            out[l++] = ' ';
+        for( i = 0; i < m; ++i )
+            l += snprintf(out+l,sizeof(out)-l,"%c",((buf[i]<32)||(buf[i]>=128))?'.':buf[i]);
+        buf += m;
+        len -= m;
+        o += m;
+        fprintf(stderr,"%s\n",out);
+    }
+}
+
 RefPtr<Uint8Array> PlayreadySession::playreadyGenerateKeyRequest(Uint8Array* initData, const String& customData, String& destinationURL, unsigned short& errorCode, uint32_t& systemCode)
 {
+    fprintf(stderr," %4d | %s\n",__LINE__,__FILE__);
     RefPtr<Uint8Array> result;
     DRM_Prdy_Error_e dr = DRM_Prdy_ok;
     do
@@ -125,15 +146,17 @@ RefPtr<Uint8Array> PlayreadySession::playreadyGenerateKeyRequest(Uint8Array* ini
         ChkBOOL(m_eKeyState == KEY_INIT, DRM_Prdy_invalid_parameter);
         ChkDRM(DRM_Prdy_Content_SetProperty(drmContext, DRM_Prdy_contentSetProperty_eAutoDetectHeader, (const unsigned char*)initData->data(), initData->byteLength()));
         GST_DEBUG("init data set on DRM context... %p", drmContext);
-        if (DRM_Prdy_Reader_Bind(drmContext, &pDecryptContext) == DRM_Prdy_ok)
-        {
-            GST_DEBUG("Play rights already acquired!");
-            m_eKeyState = KEY_READY;
-            systemCode = dr;
-            errorCode = 0;
-            return nullptr;
-        }
-        GST_DEBUG("DRM reader not bound");
+        dumpBuffer( (const unsigned char*)initData->data(), initData->byteLength() );
+//         if (DRM_Prdy_Reader_Bind(drmContext, &pDecryptContext) == DRM_Prdy_ok)
+//         {
+//             GST_DEBUG("Play rights already acquired!");
+//             m_eKeyState = KEY_READY;
+//             systemCode = dr;
+//             errorCode = 0;
+//             fprintf(stderr," %4d | %s\n",__LINE__,__FILE__);
+//             return nullptr;
+//         }
+//         GST_DEBUG("DRM reader not bound");
 
         size_t urlLen, chLen;
         ChkDRM(DRM_Prdy_Get_Buffer_Size( drmContext, DRM_Prdy_getBuffer_licenseAcq_challenge, (const uint8_t*)(customData.length() == 0 ? NULL: customData.utf8().data()), customData.length(), &urlLen, &chLen));
@@ -141,7 +164,7 @@ RefPtr<Uint8Array> PlayreadySession::playreadyGenerateKeyRequest(Uint8Array* ini
         char* pCh_url = (char*)BKNI_Malloc(urlLen + 1);
         char* pCh_data = (char*)BKNI_Malloc(chLen);
 
-        DRM_Prdy_LicenseAcq_GenerateChallenge(drmContext, customData.length() == 0 ? NULL: customData.utf8().data(), customData.length(), pCh_url, &urlLen, pCh_data, &chLen);
+        ChkDRM(DRM_Prdy_LicenseAcq_GenerateChallenge(drmContext, customData.length() == 0 ? NULL: customData.utf8().data(), customData.length(), pCh_url, &urlLen, pCh_data, &chLen));
 
         pCh_url[ urlLen ] = 0;
 
@@ -153,15 +176,20 @@ RefPtr<Uint8Array> PlayreadySession::playreadyGenerateKeyRequest(Uint8Array* ini
         m_eKeyState = KEY_PENDING;
         systemCode = dr;
         errorCode = 0;
+        fprintf(stderr," %4d | %s\n",__LINE__,__FILE__);
+        dumpBuffer( (const unsigned char*)pCh_data, chLen );
         if(pCh_url != NULL) BKNI_Free(pCh_url);
         if(pCh_data != NULL) BKNI_Free(pCh_data);
 
+        fprintf(stderr," %4d | %s\n",__LINE__,__FILE__);
         return result;
     }
     while (0);
 
+    fprintf(stderr," %4d | %s\n",__LINE__,__FILE__);
     GST_DEBUG("DRM key generation failed %d", dr);
     errorCode = -666; //MediaKeyError::MEDIA_KEYERR_CLIENT;
+    fprintf(stderr," %4d | %s\n",__LINE__,__FILE__);
     return result;
 }
 
@@ -170,10 +198,12 @@ RefPtr<Uint8Array> PlayreadySession::playreadyGenerateKeyRequest(Uint8Array* ini
 //
 bool PlayreadySession::playreadyProcessKey(Uint8Array* key, RefPtr<Uint8Array>& nextMessage, unsigned short& errorCode, uint32_t& systemCode)
 {
+    fprintf(stderr," %4d | %s\n",__LINE__,__FILE__);
     DRM_Prdy_Error_e dr = DRM_Prdy_ok;
     DRM_Prdy_License_Response_t pResponse;
     do
     {
+        dumpBuffer( (unsigned char*)key->data(), key->byteLength() );
         uint8_t *m_pbKeyMessageResponse = (unsigned char*) key->data();
         uint32_t m_cbKeyMessageResponse = key->byteLength();
         GST_MEMDUMP("response received :", (const guint8*)key->data(), key->byteLength());
@@ -193,6 +223,7 @@ bool PlayreadySession::playreadyProcessKey(Uint8Array* key, RefPtr<Uint8Array>& 
         m_eKeyState = KEY_READY;
         GST_DEBUG("key processed, now ready for content decryption");
         systemCode = dr;
+        fprintf(stderr," %4d | %s\n",__LINE__,__FILE__);
         return true;
     }
     while (0);
@@ -200,6 +231,7 @@ bool PlayreadySession::playreadyProcessKey(Uint8Array* key, RefPtr<Uint8Array>& 
     GST_DEBUG("failed processing license response %d, %d, %d", dr, static_cast<int>(pResponse.dwResult), static_cast<int>(pResponse.eType));
     errorCode = -123; //!!!!!MediaKeyError::MEDIA_KEYERR_CLIENT;
     m_eKeyState = KEY_ERROR;
+    fprintf(stderr," %4d | %s\n",__LINE__,__FILE__);
     return false;
 }
 
@@ -236,7 +268,7 @@ int PlayreadySession::processPayload(const void* iv, uint32_t ivSize, void* payl
         }
 
         GST_DEBUG("*decrypted=%p, nexus_heap=%p, size=%d", *decrypted, nexus_heap, payloadDataSize);
-        fprintf(stderr,"*decrypted=%p, nexus_heap=%p, size=%d", *decrypted, nexus_heap, payloadDataSize);
+//         fprintf(stderr,"*decrypted=%p, nexus_heap=%p, size=%d", *decrypted, nexus_heap, payloadDataSize);
         // FIXME: IV bytes need to be swapped ???
         uint8_t temp;
         for (uint32_t i = 0; i < ivSize / 2; i++)
@@ -261,7 +293,7 @@ int PlayreadySession::processPayload(const void* iv, uint32_t ivSize, void* payl
         NEXUS_FlushCache(nexus_heap, payloadDataSize);
 
         GST_DEBUG("decrypt %p->%p %d", block.pSrcAddr, block.pDestAddr, block.blockSize);
-        fprintf(stderr, " @@@@@@@@@  decrypt %p->%p %d", block.pSrcAddr, block.pDestAddr, block.blockSize);
+//         fprintf(stderr, " @@@@@@@@@  decrypt %p->%p %d", block.pSrcAddr, block.pDestAddr, block.blockSize);
         ChkDRM(DRM_Prdy_Reader_DecryptOpaque( &pDecryptContext, &aesCtrInfo, &block, 1) );
 
         NEXUS_FlushCache(nexus_heap, payloadDataSize);
@@ -283,14 +315,9 @@ int PlayreadySession::processPayload(const void* iv, uint32_t ivSize, void* payl
 
     GST_DEBUG("failed in process payload %d", dr);
     if (*decrypted != NULL)
-        freeDecrypted(*decrypted);
+        SRAI_Memory_Free((uint8_t *)*decrypted);
+    *decrypted = NULL;
     return 1;
-}
-
-void PlayreadySession::freeDecrypted(void* decrypted)
-{
-    GST_DEBUG("%p", decrypted);
-    SRAI_Memory_Free((uint8_t *)decrypted);
 }
 
 }

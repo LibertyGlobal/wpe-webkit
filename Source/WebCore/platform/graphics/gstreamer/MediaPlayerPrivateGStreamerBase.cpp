@@ -271,6 +271,7 @@ MediaPlayerPrivateGStreamerBase::MediaPlayerPrivateGStreamerBase(MediaPlayer* pl
 #if ENABLE(ENCRYPTED_MEDIA) && USE(OCDM)
     , m_initDataProcessed(false)
 #endif
+    , m_weakPtrFactory(this)
 {
     g_mutex_init(&m_sampleMutex);
 #if USE(COORDINATED_GRAPHICS_THREADED)
@@ -425,7 +426,7 @@ bool MediaPlayerPrivateGStreamerBase::handleSyncMessage(GstMessage* message)
         Vector<uint8_t> concatenatedInitDataChunks;
         unsigned concatenatedInitDataChunksNumber = 0;
         String eventKeySystemIdString;
-#if USE(PLAYREADY)
+#if USE(PLAYREADY)&& !ENABLE(ENCRYPTED_MEDIA)
         PlayreadySession* prSession = nullptr;
 #endif
 
@@ -564,7 +565,7 @@ bool MediaPlayerPrivateGStreamerBase::handleSyncMessage(GstMessage* message)
 
             // FIXME: ClearKey BestKey
             LockHolder lock(m_protectionMutex);
-            m_lastGenerateKeyRequestKeySystemUuid = AtomicString(PLAYREADY_PROTECTION_SYSTEM_ID);
+            m_lastGenerateKeyRequestKeySystemUuid = AtomicString(PLAYREADY_PROTECTION_SYSTEM_UUID);
             m_protectionCondition.notifyOne();
 #else
             ASSERT_NOT_REACHED();
@@ -2035,7 +2036,8 @@ void MediaPlayerPrivateGStreamerBase::handleProtectionEvent(GstEvent* event, Gst
 void MediaPlayerPrivateGStreamerBase::receivedGenerateKeyRequest(const String& keySystem)
 {
     GST_DEBUG("received generate key request for %s", keySystem.utf8().data());
-    m_lastGenerateKeyRequestKeySystemUuid = keySystemIdToUuid(keySystem);
+    if( !keySystem.isEmpty() )
+        m_lastGenerateKeyRequestKeySystemUuid = keySystemIdToUuid(keySystem);
     m_protectionCondition.notifyOne();
 }
 
@@ -2108,7 +2110,7 @@ bool MediaPlayerPrivateGStreamerBase::supportsKeySystem(const String& keySystem,
 
 MediaPlayer::SupportsType MediaPlayerPrivateGStreamerBase::extendedSupportsType(const MediaEngineSupportParameters& parameters, MediaPlayer::SupportsType result)
 {
-#if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1)
+#if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)
     // From: <http://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-canplaytype>
     // In addition to the steps in the current specification, this method must run the following steps:
 

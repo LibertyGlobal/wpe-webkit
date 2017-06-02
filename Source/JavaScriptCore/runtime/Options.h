@@ -119,9 +119,9 @@ typedef const char* optionString;
     \
     v(bool, reportMustSucceedExecutableAllocations, false, Normal, nullptr) \
     \
-    v(unsigned, maxPerThreadStackUsage, 80 * KB, Normal, "Max allowed stack usage by the VM") \
-    v(unsigned, softReservedZoneSize, 32 * KB, Normal, "A buffer greater than reservedZoneSize that reserves space for stringifying exceptions.") \
-    v(unsigned, reservedZoneSize, 16 * KB, Normal, "The amount of stack space we guarantee to our clients (and to interal VM code that does not call out to clients).") \
+    v(unsigned, maxPerThreadStackUsage, 512 * KB, Normal, "Max allowed stack usage by the VM") \
+    v(unsigned, softReservedZoneSize, 64 * KB, Normal, "A buffer greater than reservedZoneSize that reserves space for stringifying exceptions.") \
+    v(unsigned, reservedZoneSize, 32 * KB, Normal, "The amount of stack space we guarantee to our clients (and to interal VM code that does not call out to clients).") \
     \
     v(bool, crashIfCantAllocateJITMemory, false, Normal, nullptr) \
     v(unsigned, jitMemoryReservationSize, 0, Normal, "Set this number to change the executable allocation size in ExecutableAllocatorFixedVMPool. (In bytes.)") \

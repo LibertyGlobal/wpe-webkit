@@ -34,11 +34,15 @@
 #include "ScriptExecutionContext.h"
 #include <pal/crypto/gcrypt/Handle.h>
 #include <pal/crypto/gcrypt/Utilities.h>
+#include "NotImplemented.h"
 
 namespace WebCore {
 
 static std::optional<Vector<uint8_t>> gcryptDerive(gcry_sexp_t baseKeySexp, gcry_sexp_t publicKeySexp)
 {
+    notImplemented();
+    return std::nullopt;
+#if 0
     // First, retrieve private key data, which is roughly of the following form:
     // (private-key
     //   (ecc
@@ -114,6 +118,8 @@ static std::optional<Vector<uint8_t>> gcryptDerive(gcry_sexp_t baseKeySexp, gcry
     }
 
     return output;
+
+#endif
 }
 
 void CryptoAlgorithmECDH::platformDeriveBits(Ref<CryptoKey>&& baseKey, Ref<CryptoKey>&& publicKey, size_t length, Callback&& callback, ScriptExecutionContext& context, WorkQueue& workQueue)

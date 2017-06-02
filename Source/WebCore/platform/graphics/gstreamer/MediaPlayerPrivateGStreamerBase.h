@@ -146,7 +146,7 @@ public:
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)
     virtual void dispatchDecryptionKey(GstBuffer*);
     void handleProtectionEvent(GstEvent*, GstElement*);
-    void receivedGenerateKeyRequest(const String&);
+    void receivedGenerateKeyRequest(const String& = String());
     void abortEncryptionSetup();
 
 #if USE(PLAYREADY)
