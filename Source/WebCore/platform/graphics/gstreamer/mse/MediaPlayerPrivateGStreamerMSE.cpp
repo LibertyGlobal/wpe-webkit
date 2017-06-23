@@ -806,7 +806,7 @@ MediaPlayer::SupportsType MediaPlayerPrivateGStreamerMSE::supportsType(const Med
         return result;
 
     // Spec says we should not return "probably" if the codecs string is empty.
-    if (mimeTypeCache().contains(parameters.type)) {
+    if (mimeTypeSet().contains(parameters.type)) {
         if (parameters.codecs.isEmpty())
             result = MediaPlayer::MayBeSupported;
         else
