@@ -924,18 +924,6 @@ NativeImagePtr MediaPlayer::nativeImageForCurrentTime()
     return m_private->nativeImageForCurrentTime();
 }
 
-const char *_supportsTypeStr( MediaPlayer::SupportsType t ) {
-    switch( t ) {
-        case MediaPlayer::IsNotSupported:
-            return "IsNotSupported";
-        case MediaPlayer::IsSupported:
-            return "IsSupported";
-        case MediaPlayer::MayBeSupported:
-            return "MayBeSupported";
-    }
-    return NULL;
-}
-
 MediaPlayer::SupportsType MediaPlayer::supportsType(const MediaEngineSupportParameters& parameters, const MediaPlayerSupportsTypeClient* client)
 {
     MediaPlayer::SupportsType ret = IsNotSupported;

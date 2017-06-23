@@ -197,6 +197,9 @@ bool gstRegistryHasElementForMediaType(GList* elementFactories, const char* caps
     bool result = candidates;
 
     gst_plugin_feature_list_free(candidates);
+
+    fprintf(stderr,"gstRegistryHasElementForMediaType( %p, \"%s\" ) => %s\n",elementFactories,capsString,result?"true":"false");
+
     return result;
 }
 

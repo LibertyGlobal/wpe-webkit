@@ -717,26 +717,9 @@ void MediaPlayerPrivateGStreamerMSE::durationChanged()
     }
 }
 
-static HashSet<String, ASCIICaseInsensitiveHash>& mimeTypeCache()
-{
-    static NeverDestroyed<HashSet<String, ASCIICaseInsensitiveHash>> cache = []()
-    {
-        initializeGStreamerAndRegisterWebKitMSEElement();
-        HashSet<String, ASCIICaseInsensitiveHash> set;
-        const char* mimeTypes[] = {
-            "video/mp4",
-            "audio/mp4"
-        };
-        for (auto& type : mimeTypes)
-            set.add(type);
-        return set;
-    }();
-    return cache;
-}
-
 void MediaPlayerPrivateGStreamerMSE::getSupportedTypes(HashSet<String, ASCIICaseInsensitiveHash>& types)
 {
-    types = mimeTypeCache();
+    types = mimeTypeSet();
 }
 
 void MediaPlayerPrivateGStreamerMSE::trackDetected(RefPtr<AppendPipeline> appendPipeline, RefPtr<WebCore::TrackPrivateBase> oldTrack, RefPtr<WebCore::TrackPrivateBase> newTrack)
@@ -768,7 +751,7 @@ void MediaPlayerPrivateGStreamerMSE::trackDetected(RefPtr<AppendPipeline> append
 
 bool MediaPlayerPrivateGStreamerMSE::supportsCodecs(const String& codecs)
 {
-    static Vector<const char*> supportedCodecs = { "avc*", "mp4a*", "mpeg", "x-h264" };
+    static Vector<const char*> supportedCodecs = { "avc*", "mp4a*", "mpeg", "x-h264", "vp9" };
     Vector<String> codecEntries;
     codecs.split(',', false, codecEntries);
 

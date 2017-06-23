@@ -1953,7 +1953,7 @@ void MediaPlayerPrivateGStreamer::loadingFailed(MediaPlayer::NetworkState error)
     m_readyTimerHandler.stop();
 }
 
-static HashSet<String, ASCIICaseInsensitiveHash>& mimeTypeSet()
+const HashSet<String, ASCIICaseInsensitiveHash>& MediaPlayerPrivateGStreamer::mimeTypeSet()
 {
     static NeverDestroyed<HashSet<String, ASCIICaseInsensitiveHash>> mimeTypes = []()
     {

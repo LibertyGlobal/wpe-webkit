@@ -210,6 +210,8 @@ protected:
     void ensureAudioSourceProvider();
     void setAudioStreamProperties(GObject*);
 
+    static const HashSet<String, ASCIICaseInsensitiveHash>& mimeTypeSet();
+
     static void setAudioStreamPropertiesCallback(MediaPlayerPrivateGStreamer*, GObject*);
 
     static void sourceChangedCallback(MediaPlayerPrivateGStreamer*);

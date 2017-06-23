@@ -669,6 +669,18 @@ private:
 #endif
 };
 
+inline const char *_supportsTypeStr( MediaPlayer::SupportsType t ) {
+    switch( t ) {
+        case MediaPlayer::IsNotSupported:
+            return "IsNotSupported";
+        case MediaPlayer::IsSupported:
+            return "IsSupported";
+        case MediaPlayer::MayBeSupported:
+            return "MayBeSupported";
+    }
+    return NULL;
+}
+
 typedef std::function<std::unique_ptr<MediaPlayerPrivateInterface> (MediaPlayer*)> CreateMediaEnginePlayer;
 typedef void (*MediaEngineSupportedTypes)(HashSet<String, ASCIICaseInsensitiveHash>& types);
 typedef MediaPlayer::SupportsType (*MediaEngineSupportsType)(const MediaEngineSupportParameters& parameters);
