@@ -58,6 +58,9 @@ class VideoTextureCopierGStreamer;
 #if USE(PLAYREADY)
 class PlayreadySession;
 #endif
+#if USE(WIDEVINE)
+class WidevineSession;
+#endif
 
 void registerWebKitGStreamerElements();
 
@@ -153,6 +156,11 @@ public:
     PlayreadySession* prSession() const;
     virtual void emitPlayReadySession(PlayreadySession*);
 #endif
+#if USE(WIDEVINE)
+    WidevineSession* wvSession() const;
+    virtual void emitWidevineSession(WidevineSession*);
+#endif
+
 #endif
 
 #if (ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(LEGACY_ENCRYPTED_MEDIA_V1)) && USE(OCDM)

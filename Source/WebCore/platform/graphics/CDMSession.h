@@ -59,6 +59,7 @@ enum CDMSessionType {
     CDMSessionTypeClearKey,
     CDMSessionTypeAVFoundationObjC,
     CDMSessionTypePlayReady,
+    CDMSessionTypeWidevine,
     CDMSessionTypeAVStreamSession,
     CDMSessionTypeAVContentKeySession,
 };

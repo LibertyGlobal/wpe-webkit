@@ -47,6 +47,9 @@
 #if USE(PLAYREADY)
 #include "CDMPlayReady.h"
 #endif
+#if USE(WIDEVINE)
+#include "CDMWidevine.h"
+#endif
 
 namespace WebCore {
 
@@ -60,6 +63,9 @@ static Vector<CDMFactory*>& cdmFactories()
 #endif
 #if USE(PLAYREADY)
         factories.get().append(new CDMFactoryPlayReady);
+#endif
+#if USE(WIDEVINE)
+        factories.get().append(new CDMFactoryWidevine);
 #endif
     }
 

@@ -147,6 +147,7 @@ if (ENABLE_LEGACY_ENCRYPTED_MEDIA_V1 OR ENABLE_LEGACY_ENCRYPTED_MEDIA OR ENABLE_
     list(APPEND WebCore_SOURCES
         platform/graphics/gstreamer/eme/CDMPRSessionGStreamer.cpp
         platform/graphics/gstreamer/eme/WebKitPlayReadyDecryptorGStreamer.cpp
+        platform/graphics/gstreamer/eme/WebKitWidevineDecryptorGStreamer.cpp
     )
 
     if (ENABLE_PLAYREADY)
@@ -164,6 +165,18 @@ if (ENABLE_LEGACY_ENCRYPTED_MEDIA_V1 OR ENABLE_LEGACY_ENCRYPTED_MEDIA OR ENABLE_
         endforeach()
         list(APPEND WebCore_SOURCES
             platform/graphics/gstreamer/eme/PlayreadySession.cpp
+        )
+    endif ()
+
+    if (ENABLE_WIDEVINE)
+        list(APPEND WebCore_LIBRARIES
+            ${WIDEVINE_LIBRARIES}
+        )
+        list(APPEND WebCore_INCLUDE_DIRECTORIES
+            ${WIDEVINE_INCLUDE_DIRS}
+        )
+        list(APPEND WebCore_SOURCES
+            platform/graphics/gstreamer/eme/WidevineSession.cpp
         )
     endif ()
 

@@ -69,6 +69,12 @@ if (ENABLE_PLAYREADY)
     find_package(Playready REQUIRED)
 endif ()
 
+if (ENABLE_WIDEVINE)
+    add_definitions(-DUSE_WIDEVINE=1)
+    find_package(Widevine REQUIRED)
+endif ()
+
+
 set(ENABLE_WEBCORE ON)
 set(ENABLE_WEBKIT OFF)
 set(ENABLE_WEBKIT2 ON)

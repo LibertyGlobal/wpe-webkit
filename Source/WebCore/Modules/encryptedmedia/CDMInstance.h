@@ -49,6 +49,7 @@ public:
         ClearKey,
         Mock,
         PlayReady,
+        Widevine,
     };
 
     virtual ImplementationType implementationType() const = 0;

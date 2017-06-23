@@ -29,6 +29,7 @@
 #if ENABLE(VIDEO) && USE(GSTREAMER) && ENABLE(MEDIA_SOURCE)
 
 #include "CDMInstancePlayReady.h"
+#include "CDMInstanceWidevine.h"
 #include "AppendPipeline.h"
 #include "AudioTrackPrivateGStreamer.h"
 #include "GStreamerUtilities.h"
@@ -53,6 +54,9 @@
 
 #if USE(PLAYREADY)
 #include "PlayreadySession.h"
+#endif
+#if USE(WIDEVINE)
+#include "WidevineSession.h"
 #endif
 
 #if ENABLE(ENCRYPTED_MEDIA)
@@ -795,6 +799,7 @@ MediaPlayer::SupportsType MediaPlayerPrivateGStreamerMSE::supportsType(const Med
     if (!parameters.isMediaSource)
         return result;
 
+    // ZH_TODO: might be necessary to unblock it in the future
     // Disable VPX/Opus on MSE for now, mp4/avc1 seems way more reliable currently.
 //     if (parameters.type.endsWith("webm"))
 //         return result;
@@ -860,21 +865,34 @@ void MediaPlayerPrivateGStreamerMSE::attemptToDecryptWithInstance(const CDMInsta
     sprintf(buf,"pipeline%02d",i++);
     gst_debug_bin_to_dot_file(GST_BIN(m_pipeline.get()), GST_DEBUG_GRAPH_SHOW_ALL, buf);
 #if USE(PLAYREADY)
-    auto& instance = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
-    auto session = &(instance.prSession());
+    auto& instancepr = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
+    auto sessionpr = &(instancepr.prSession());
 
-    if (!session->ready())
-        return;
-
-    for (auto it : m_appendPipelinesMap)
-        /*if (session->hasPipeline(it.value->pipeline()))*/ {
+    if (sessionpr->ready())
+        for (auto it : m_appendPipelinesMap)
+        {
             sprintf(buf,"pipeline%02d",i++);
             gst_debug_bin_to_dot_file(GST_BIN(it.value->pipeline()), GST_DEBUG_GRAPH_SHOW_ALL, buf);
             gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-                                                                                gst_structure_new("playready-session", "session", G_TYPE_POINTER, session, nullptr)));
+                                                                                gst_structure_new("playready-session", "session", G_TYPE_POINTER, sessionpr, nullptr)));
             it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
         }
+#endif
+#if USE(WIDEVINE)
+    auto& instancewv = reinterpret_cast<const CDMInstanceWidevine&>(baseInstance);
+    auto sessionwv = &(instancewv.wvSession());
 
+    if (sessionwv->ready())
+    {
+        for (auto it : m_appendPipelinesMap)
+        {
+            sprintf(buf,"pipeline%02d",i++);
+            gst_debug_bin_to_dot_file(GST_BIN(it.value->pipeline()), GST_DEBUG_GRAPH_SHOW_ALL, buf);
+            gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
+                                                                            gst_structure_new("widevine-session", "session", G_TYPE_POINTER, sessionwv, nullptr)));
+            it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
+        }
+    }
 #endif
 }
 #endif

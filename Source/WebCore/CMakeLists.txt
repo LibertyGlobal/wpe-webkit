@@ -3121,6 +3121,7 @@ if (ENABLE_ENCRYPTED_MEDIA)
         Modules/encryptedmedia/CDMClearKey.cpp
         Modules/encryptedmedia/CDMOpenCDM.cpp
         Modules/encryptedmedia/CDMPlayReady.cpp
+        Modules/encryptedmedia/CDMWidevine.cpp
         Modules/encryptedmedia/InitDataRegistry.cpp
         Modules/encryptedmedia/MediaKeyMessageEvent.cpp
         Modules/encryptedmedia/MediaKeySession.cpp

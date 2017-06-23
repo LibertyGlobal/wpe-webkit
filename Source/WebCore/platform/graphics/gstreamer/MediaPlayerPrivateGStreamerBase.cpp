@@ -28,6 +28,7 @@
 #if ENABLE(VIDEO) && USE(GSTREAMER)
 
 #include "CDMInstancePlayReady.h"
+#include "CDMInstanceWidevine.h"
 #include "GStreamerUtilities.h"
 #include "GraphicsContext.h"
 #include "GraphicsTypes.h"
@@ -123,7 +124,11 @@
 #if USE(PLAYREADY)
 #include "PlayreadySession.h"
 #endif
+#if USE(WIDEVINE)
+#include "WidevineSession.h"
+#endif
 #include "WebKitPlayReadyDecryptorGStreamer.h"
+#include "WebKitWidevineDecryptorGStreamer.h"
 #endif
 
 #if USE(CAIRO) && ENABLE(ACCELERATED_2D_CANVAS)
@@ -162,6 +167,12 @@ void registerWebKitGStreamerElements()
     GRefPtr<GstElementFactory> playReadyDecryptorFactory = gst_element_factory_find("webkitplayreadydec");
     if (!playReadyDecryptorFactory)
         gst_element_register(0, "webkitplayreadydec", GST_RANK_PRIMARY + 100, WEBKIT_TYPE_MEDIA_PLAYREADY_DECRYPT);
+#endif
+
+#if (ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)) && USE(WIDEVINE)
+    GRefPtr<GstElementFactory> widevineDecryptorFactory = gst_element_factory_find("webkitwidevinedec");
+    if (!widevineDecryptorFactory)
+        gst_element_register(0, "webkitwidevinedec", GST_RANK_PRIMARY + 100, WEBKIT_TYPE_MEDIA_WIDEVINE_DECRYPT);
 #endif
 
 #if (ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)) && USE(OCDM)
@@ -563,6 +574,7 @@ bool MediaPlayerPrivateGStreamerBase::handleSyncMessage(GstMessage* message)
             fprintf(stderr, "MediaPlayerPrivateGStreamerBase: got init data of size %zu\n", initData.size());
             m_player->initializationDataEncountered(ASCIILiteral("cenc"), ArrayBuffer::create(initData.data(), initData.size()));
 
+            // ZH_TODO: Verify Widevine path
             // FIXME: ClearKey BestKey
             LockHolder lock(m_protectionMutex);
             m_lastGenerateKeyRequestKeySystemUuid = AtomicString(PLAYREADY_PROTECTION_SYSTEM_UUID);
@@ -1596,6 +1608,28 @@ void MediaPlayerPrivateGStreamerBase::emitPlayReadySession(PlayreadySession* ses
 #endif
 #endif // USE(PLAYREADY)
 
+#if USE(WIDEVINE)
+#if (ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)) && USE(WIDEVINE)
+WidevineSession* MediaPlayerPrivateGStreamerBase::wvSession() const
+{
+    WidevineSession* session = nullptr;
+    return session;
+}
+#endif
+
+#if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)
+void MediaPlayerPrivateGStreamerBase::emitWidevineSession(WidevineSession* session)
+{
+    if (!session->ready())
+        return;
+
+    bool eventHandled = gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
+        gst_structure_new("widevine-session", "session", G_TYPE_POINTER, session, nullptr)));
+    GST_TRACE("emitted WV session on pipeline, event handled %s", eventHandled ? "yes" : "no");
+}
+#endif
+#endif // USE(WIDEVINE)
+
 #if USE(OCDM) && (ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA))
 void MediaPlayerPrivateGStreamerBase::emitOpenCDMSession()
 {
@@ -1647,13 +1681,22 @@ void MediaPlayerPrivateGStreamerBase::resetOpenCDMFlag()
 void MediaPlayerPrivateGStreamerBase::attemptToDecryptWithInstance(const CDMInstance& baseInstance)
 {
 #if USE(PLAYREADY)
-    auto& instance = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
-    auto& prSession = instance.prSession();
+    auto& prinstance = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
+    auto& prSession = prinstance.prSession();
 
     if (prSession.ready())
         gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
             gst_structure_new("playready-session", "session", G_TYPE_POINTER, &prSession, nullptr)));
 #endif
+#if USE(WIDEVINE)
+    auto& wvinstance = reinterpret_cast<const CDMInstanceWidevine&>(baseInstance);
+    auto& wvSession = wvinstance.wvSession();
+
+    if (wvSession.ready())
+        gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
+            gst_structure_new("widevine-session", "session", G_TYPE_POINTER, &wvSession, nullptr)));
+#endif
+
 }
 #endif
 
@@ -1685,6 +1728,27 @@ MediaPlayer::MediaKeyException MediaPlayerPrivateGStreamerBase::addKey(const Str
         return MediaPlayer::NoError;
     }
 #endif
+#if USE(WIDEVINE)
+    if (equalIgnoringASCIICase(keySystem, "com.widevine.alpha") )
+    {
+        RefPtr<Uint8Array> key = Uint8Array::create(keyData, keyLength);
+        RefPtr<Uint8Array> nextMessage;
+        unsigned short errorCode;
+        uint32_t systemCode;
+        WidevineSession* wvSession = wvSessionBySessionId(sessionID);
+        bool result = wvSession->WidevineProcessKey(key.get(), nextMessage, errorCode, systemCode);
+        // ZH_TODO: check whether it works
+        if (errorCode || !result) {
+            GST_ERROR("Error processing key: errorCode: %u, result: %d", errorCode, result);
+            return MediaPlayer::InvalidPlayerState;
+        }
+        emitWidevineSession(wvSession);
+        m_player->keyAdded(keySystem, sessionID);
+
+        return MediaPlayer::NoError;
+    }
+#endif
+
 #if USE(OCDM)
     if (CDMPrivateOpenCDM::supportsKeySystem(keySystem)) {
         RefPtr<Uint8Array> key = Uint8Array::create(keyData, keyLength);
@@ -1822,6 +1886,47 @@ MediaPlayer::MediaKeyException MediaPlayerPrivateGStreamerBase::generateKeyReque
         GST_TRACE("playready generateKeyRequest result size %u, sessionId: %s", result->length(), prSession->sessionId().utf8().data());
         GST_MEMDUMP("result", result->data(), result->length());
         m_player->keyMessage(keySystem, prSession->sessionId(), result->data(), result->length(), url);
+        return MediaPlayer::NoError;
+    }
+#endif
+#if USE(WIDEVINE)
+    if (equalIgnoringASCIICase(keySystem, "com.widevine.alpha"))
+    {
+        trimInitData(keySystemIdToUuid(keySystem).string(), initDataPtr, initDataLength);
+
+        Vector<uint8_t> initDataVector;
+        initDataVector.append(reinterpret_cast<const uint8_t*>(initDataPtr), initDataLength);
+        WidevineSession* wvSession = wvSessionByInitData(initDataVector, true);
+        if (!wvSession)
+            GST_ERROR("wvSession should already have been created when handling the protection events");
+
+        if (wvSession->ready()) {
+            emitWidevineSession(wvSession);
+            return MediaPlayer::NoError;
+        }
+        if (wvSession->keyRequested()) {
+            GST_DEBUG("previous key request already ongoing");
+            return MediaPlayer::NoError;
+        }
+
+        unsigned short errorCode = 0;
+        uint32_t systemCode;
+        RefPtr<Uint8Array> initData = Uint8Array::create(&(initDataPtr[boxLength]), initDataLength-boxLength);
+        String destinationURL;
+        RefPtr<Uint8Array> result = wvSession->widevineGenerateKeyRequest(initData.get(), customData, destinationURL, errorCode, systemCode);
+        if (errorCode) {
+            GST_ERROR("the key request wasn't properly generated");
+            return MediaPlayer::InvalidPlayerState;
+        }
+
+        if (wvSession->ready()) {
+            emitWidevineSession(wvSession);
+            return MediaPlayer::NoError;
+        }
+        URL url(URL(), destinationURL);
+        GST_TRACE("widevine generateKeyRequest result size %u, sessionId: %s", result->length(), wvSession->sessionId().utf8().data());
+        GST_MEMDUMP("result", result->data(), result->length());
+        m_player->keyMessage(keySystem, wvSession->sessionId(), result->data(), result->length(), url);
         return MediaPlayer::NoError;
     }
 #endif
@@ -2054,7 +2159,7 @@ static AtomicString keySystemIdToUuid(const AtomicString& id)
         return AtomicString(PLAYREADY_PROTECTION_SYSTEM_UUID);
 #endif
 
-#if (ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)) && USE(OCDM)
+#if (ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)) && (USE(WIDEVINE) || USE(OCDM))
     if (equalIgnoringASCIICase(id, WIDEVINE_PROTECTION_SYSTEM_ID))
         return AtomicString(WIDEVINE_PROTECTION_SYSTEM_UUID);
 #endif
@@ -2074,7 +2179,7 @@ static AtomicString keySystemUuidToId(const AtomicString& uuid)
         return AtomicString(PLAYREADY_PROTECTION_SYSTEM_ID);
 #endif
 
-#if (ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)) && USE(OCDM)
+#if (ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)) && (USE(WIDEVINE) || USE(OCDM))
     if (equalIgnoringASCIICase(uuid, WIDEVINE_PROTECTION_SYSTEM_UUID))
         return AtomicString(WIDEVINE_PROTECTION_SYSTEM_ID);
 #endif
@@ -2089,6 +2194,11 @@ bool MediaPlayerPrivateGStreamerBase::supportsKeySystem(const String& keySystem,
 
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(ENCRYPTED_MEDIA)
     if (equalLettersIgnoringASCIICase(keySystem, "org.w3.clearkey"))
+        result = true;
+#endif
+
+#if USE(WIDEVINE) && ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(ENCRYPTED_MEDIA)
+    if (equalLettersIgnoringASCIICase(keySystem, "com.widevine.alpha"))
         result = true;
 #endif
 
