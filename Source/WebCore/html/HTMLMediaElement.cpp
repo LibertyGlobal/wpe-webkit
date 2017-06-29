@@ -1277,7 +1277,6 @@ void HTMLMediaElement::prepareForLoad()
 
         // 6.6 - If the paused attribute is false, then set it to true.
         m_paused = true;
-        fprintf(stderr," %4d | %s | %s SETPAUSE: %d\n",__LINE__,__FILE__,__FUNCTION__,m_paused);
 
         // 6.7 - If seeking is true, set it to false.
         clearSeeking();
@@ -1727,10 +1726,8 @@ void HTMLMediaElement::updateActiveTextTrackCues(const MediaTime& movieTime)
     // element. (In the other cases, such as explicit seeks, relevant events get
     // fired as part of the overall process of changing the current playback
     // position.)
-    if (!m_paused && m_lastSeekTime <= lastTime) {
-        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
+    if (!m_paused && m_lastSeekTime <= lastTime)
         scheduleTimeupdateEvent(false);
-    }
 
     // Explicitly cache vector sizes, as their content is constant from here.
     size_t currentCuesSize = currentCues.size();
@@ -2433,7 +2430,6 @@ void HTMLMediaElement::setReadyState(MediaPlayer::ReadyState state)
         if (wasPotentiallyPlaying && m_readyState < HAVE_FUTURE_DATA) {
             // 4.8.10.8
             invalidateCachedTime();
-            fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
             scheduleTimeupdateEvent(false);
             scheduleEvent(eventNames().waitingEvent);
         }
@@ -2496,7 +2492,6 @@ void HTMLMediaElement::setReadyState(MediaPlayer::ReadyState state)
         auto success = canTransitionFromAutoplayToPlay();
         if (success) {
             m_paused = false;
-            fprintf(stderr," %4d | %s | %s SETPAUSE: %d\n",__LINE__,__FILE__,__FUNCTION__,m_paused);
             invalidateCachedTime();
             setPlaybackWithoutUserGesture(PlaybackWithoutUserGesture::Started);
             m_playbackStartedTime = currentMediaTime().toDouble();
@@ -2648,7 +2643,6 @@ MediaKeys* HTMLMediaElement::mediaKeys() const
 
 void HTMLMediaElement::setMediaKeys(MediaKeys* mediaKeys, Ref<DeferredPromise>&& promise)
 {
-    LOG(Medis,"HTMLMediaElement::%s",__FUNCTION__);
     // https://w3c.github.io/encrypted-media/#dom-htmlmediaelement-setmediakeys
     // W3C Editor's Draft 09 November 2016
 
@@ -2658,7 +2652,6 @@ void HTMLMediaElement::setMediaKeys(MediaKeys* mediaKeys, Ref<DeferredPromise>&&
         return;
     }
 
-    LOG(Medis,"HTMLMediaElement::%s",__FUNCTION__);
     // 2. If this object's attaching media keys value is true, return a promise rejected with an InvalidStateError.
     if (m_attachingMediaKeys) {
         promise->reject(INVALID_STATE_ERR);
@@ -2699,9 +2692,7 @@ void HTMLMediaElement::setMediaKeys(MediaKeys* mediaKeys, Ref<DeferredPromise>&&
             // 5.3.3. Queue a task to run the Attempt to Resume Playback If Necessary algorithm on the media element.
             // FIXME: ^
 
-            LOG(Medis,"HTMLMediaElement::%s",__FUNCTION__);
             mediaKeys->attachCDMClient(*this);
-            LOG(Medis,"HTMLMediaElement::%s",__FUNCTION__);
         }
 
         // 5.4. Set the mediaKeys attribute to mediaKeys.
@@ -2712,7 +2703,6 @@ void HTMLMediaElement::setMediaKeys(MediaKeys* mediaKeys, Ref<DeferredPromise>&&
         promise->resolve();
     });
 
-    LOG(Medis,"HTMLMediaElement::%s",__FUNCTION__);
     // 6. Return promise.
 }
 
@@ -2738,7 +2728,6 @@ bool HTMLMediaElement::mediaPlayerInitializationDataEncountered(const String& in
     MediaEncryptedEventInit initializer { initDataType, WTFMove(initData) };
     m_asyncEventQueue.enqueueEvent(MediaEncryptedEvent::create(eventNames().encryptedEvent, initializer, Event::IsTrusted::Yes));
 
-    LOG(Media,"HTMLMediaElement::%s()",__FUNCTION__);
     return true;
 }
 
@@ -3014,7 +3003,6 @@ void HTMLMediaElement::seekTask()
         LOG(Media, "HTMLMediaElement::seekTask(%p) - seek to %s ignored", this, toString(time).utf8().data());
         if (time == now) {
             scheduleEvent(eventNames().seekingEvent);
-            fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
             scheduleTimeupdateEvent(false);
             scheduleEvent(eventNames().seekedEvent);
         }
@@ -3058,7 +3046,6 @@ void HTMLMediaElement::finishSeek()
     // Handled by mediaPlayerTimeChanged().
 
     // 16 - Queue a task to fire a simple event named timeupdate at the element.
-    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     scheduleEvent(eventNames().timeupdateEvent);
 
     // 17 - Queue a task to fire a simple event named seeked at the element.
@@ -3226,7 +3213,6 @@ MediaTime HTMLMediaElement::durationMediaTime() const
 
 bool HTMLMediaElement::paused() const
 {
-    LOG(Media,"HTMLMediaElement::%s(), %s",__FUNCTION__,m_paused?"true":"false");
     // As of this writing, JavaScript garbage collection calls this function directly. In the past
     // we had problems where this was called on an object after a bad cast. The assertion below
     // made our regression test detect the problem, so we should keep it because of that. But note
@@ -3463,7 +3449,6 @@ bool HTMLMediaElement::playInternal()
 
     if (m_paused) {
         m_paused = false;
-        fprintf(stderr," %4d | %s | %s SETPAUSE: %d\n",__LINE__,__FILE__,__FUNCTION__,m_paused);
         invalidateCachedTime();
         m_playbackStartedTime = currentMediaTime().toDouble();
         scheduleEvent(eventNames().playEvent);
@@ -3556,7 +3541,6 @@ void HTMLMediaElement::pauseInternal()
 
     if (!m_paused) {
         m_paused = true;
-        fprintf(stderr," %4d | %s | %s SETPAUSE: %d\n",__LINE__,__FILE__,__FUNCTION__,m_paused);
         scheduleTimeupdateEvent(false);
         scheduleEvent(eventNames().pauseEvent);
         m_promiseTaskQueue.enqueueTask([this]() {
@@ -3902,7 +3886,6 @@ void HTMLMediaElement::playbackProgressTimerFired()
         }
     }
     
-    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     scheduleTimeupdateEvent(true);
 
     if (!requestedPlaybackRate())
@@ -3934,7 +3917,6 @@ void HTMLMediaElement::scheduleTimeupdateEvent(bool periodicEvent)
     // event at a given time so filter here
     MediaTime movieTime = currentMediaTime();
     if (movieTime != m_lastTimeUpdateEventMovieTime) {
-        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
         scheduleEvent(eventNames().timeupdateEvent);
         m_clockTimeAtLastUpdateEvent = now;
         m_lastTimeUpdateEventMovieTime = movieTime;
@@ -4795,10 +4777,8 @@ void HTMLMediaElement::mediaPlayerTimeChanged(MediaPlayer*)
     // Always call scheduleTimeupdateEvent when the media engine reports a time discontinuity, 
     // it will only queue a 'timeupdate' event if we haven't already posted one at the current
     // movie time.
-    else {
-        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
+    else
         scheduleTimeupdateEvent(false);
-    }
 
     MediaTime now = currentMediaTime();
     MediaTime dur = durationMediaTime();
@@ -4819,7 +4799,6 @@ void HTMLMediaElement::mediaPlayerTimeChanged(MediaPlayer*)
             if (!m_mediaController && !m_paused) {
                 // changes paused to true and fires a simple event named pause at the media element.
                 m_paused = true;
-                fprintf(stderr," %4d | %s | %s SETPAUSE: %d\n",__LINE__,__FILE__,__FUNCTION__,m_paused);
                 scheduleEvent(eventNames().pauseEvent);
                 m_mediaSession->clientWillPausePlayback();
             }
@@ -4857,7 +4836,6 @@ void HTMLMediaElement::mediaPlayerTimeChanged(MediaPlayer*)
                 if (!wasSeeking)
                     addBehaviorRestrictionsOnEndIfNecessary();
                 m_paused = true;
-                fprintf(stderr," %4d | %s | %s SETPAUSE: %d\n",__LINE__,__FILE__,__FUNCTION__,m_paused);
                 setPlaying(false);
             }
         } else

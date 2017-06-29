@@ -203,7 +203,7 @@ inline bool getPSSHPayload( const uint8_t *initData, int initDataLength, const c
     return false;
 }
 
-void CDMInstancePlayReady::requestLicense(LicenseType, const AtomicString& initDataType, Ref<SharedBuffer>&& initData, LicenseCallback callback)
+void CDMInstancePlayReady::requestLicense(LicenseType, const AtomicString& /*initDataType*/, Ref<SharedBuffer>&& initData, LicenseCallback callback)
 {
     fprintf(stderr, "NotImplemented: CDMInstancePlayReady::%s()\n", __func__);
     const uint8_t  *initBlock   = NULL;
@@ -217,7 +217,6 @@ void CDMInstancePlayReady::requestLicense(LicenseType, const AtomicString& initD
         initBlock = reinterpret_cast<const uint8_t*>(initData->data());
         initLength = initData->size();
     }
-    fprintf(stderr," %4d | %s\n",__LINE__,__FILE__);
     RefPtr<Uint8Array> initDataArray = Uint8Array::create( initBlock, initLength );
     result = m_prSession->playreadyGenerateKeyRequest(initDataArray.get(), String(), destinationURL, errorCode, systemCode);
 
@@ -229,7 +228,7 @@ void CDMInstancePlayReady::requestLicense(LicenseType, const AtomicString& initD
     callback(SharedBuffer::create(result->data(), result->byteLength()), createCanonicalUUIDString(), false, Succeeded);
 }
 
-void CDMInstancePlayReady::updateLicense(const String& sessionId, LicenseType, const SharedBuffer& response, LicenseUpdateCallback callback)
+void CDMInstancePlayReady::updateLicense(const String& /*sessionId*/, LicenseType, const SharedBuffer& response, LicenseUpdateCallback callback)
 {
     fprintf(stderr, "NotImplemented: CDMInstancePlayReady::%s()\n", __func__);
 
@@ -257,22 +256,22 @@ void CDMInstancePlayReady::updateLicense(const String& sessionId, LicenseType, c
     callback(false, WTFMove(changedKeys), std::nullopt, std::nullopt, Succeeded);
 }
 
-void CDMInstancePlayReady::loadSession(LicenseType, const String& sessionId, const String& origin, LoadSessionCallback)
+void CDMInstancePlayReady::loadSession(LicenseType, const String& /*sessionId*/, const String& /*origin*/, LoadSessionCallback)
 {
     fprintf(stderr, "NotImplemented: CDMInstancePlayReady::%s()\n", __func__);
 }
 
-void CDMInstancePlayReady::closeSession(const String& sessionId, CloseSessionCallback)
+void CDMInstancePlayReady::closeSession(const String& /*sessionId*/, CloseSessionCallback)
 {
     fprintf(stderr, "NotImplemented: CDMInstancePlayReady::%s()\n", __func__);
 }
 
-void CDMInstancePlayReady::removeSessionData(const String& sessionId, LicenseType, RemoveSessionDataCallback)
+void CDMInstancePlayReady::removeSessionData(const String& /*sessionId*/, LicenseType, RemoveSessionDataCallback)
 {
     fprintf(stderr, "NotImplemented: CDMInstancePlayReady::%s()\n", __func__);
 }
 
-void CDMInstancePlayReady::storeRecordOfKeyUsage(const String& sessionId)
+void CDMInstancePlayReady::storeRecordOfKeyUsage(const String& /*sessionId*/)
 {
     fprintf(stderr, "NotImplemented: CDMInstancePlayReady::%s()\n", __func__);
 }

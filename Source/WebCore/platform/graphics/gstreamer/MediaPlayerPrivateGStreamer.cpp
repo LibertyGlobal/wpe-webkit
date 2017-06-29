@@ -396,7 +396,6 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
         gst_query_parse_position(query, 0, &position);
     gst_query_unref(query);
 
-    fprintf(stderr," %4d | %s | %s playbackPosition( %lld )\n",__LINE__,__FILE__,__FUNCTION__,position);
     GST_DEBUG("Position %" GST_TIME_FORMAT, GST_TIME_ARGS(position));
 
     double result = 0.0f;
@@ -407,7 +406,7 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
     } else if (m_canFallBackToLastFinishedSeekPosition)
         result = m_seekTime;
 
-    fprintf(stderr," %4d | %s | %s playbackPosition( %llf )\n",__LINE__,__FILE__,__FUNCTION__,result);
+    fprintf(stderr," %4d | %s | %s playbackPosition( %lf )\n",__LINE__,__FILE__,__FUNCTION__,result);
 
 #if PLATFORM(BCM_NEXUS) || 1
     // implement getting pts time from broadcom decoder directly for seek functionality
@@ -424,6 +423,7 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
         result = m_seekTime;
 #endif
 
+    fprintf(stderr," %4d | %s | %s playbackPosition( %lf )\n",__LINE__,__FILE__,__FUNCTION__,result);
     m_cachedPosition = result;
     return result;
 }
@@ -1064,7 +1064,7 @@ void MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
     // We ignore state changes from internal elements. They are forwarded to playbin2 anyway.
     bool messageSourceIsPlaybin = GST_MESSAGE_SRC(message) == reinterpret_cast<GstObject*>(m_pipeline.get());
 
-    GST_INFO("Message %s received from element %s", GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_SRC_NAME(message));
+    GST_TRACE("Message %s received from element %s", GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_SRC_NAME(message));
     switch (GST_MESSAGE_TYPE(message)) {
     case GST_MESSAGE_ERROR:
 #if USE(OCDM) && (ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA))
@@ -1925,16 +1925,12 @@ void MediaPlayerPrivateGStreamer::loadStateChanged()
 
 void MediaPlayerPrivateGStreamer::timeChanged()
 {
-    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     updateStates();
-    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     m_player->timeChanged();
-    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
 }
 
 void MediaPlayerPrivateGStreamer::didEnd()
 {
-    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     // Synchronize position and duration values to not confuse the
     // HTMLMediaElement. In some cases like reverse playback the
     // position is not always reported as 0 for instance.
@@ -1945,7 +1941,6 @@ void MediaPlayerPrivateGStreamer::didEnd()
     m_isEndReached = true;
     timeChanged();
 
-    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     if (!m_player->client().mediaPlayerIsLooping()) {
         m_downloadFinished = false;
         m_paused = true;
@@ -1955,9 +1950,7 @@ void MediaPlayerPrivateGStreamer::didEnd()
         // that issue, but this should be change back to READY when it gets fixed upstream.
         fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_NULL )\n",__LINE__,__FILE__,__FUNCTION__);
         changePipelineState(GST_STATE_NULL);
-        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     }
-    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
 }
 
 void MediaPlayerPrivateGStreamer::durationChanged()
@@ -2414,7 +2407,7 @@ void MediaPlayerPrivateGStreamer::createGSTPlayBin()
             g_object_set(m_pipeline.get(), "audio-filter", scale, nullptr);
     }
 
-    if (!m_renderingCanBeAccelerated && 0) {
+    if (!m_renderingCanBeAccelerated && 0) {	// Bunio: NOT OK!
         // If not using accelerated compositing, let GStreamer handle
         // the image-orientation tag.
         GstElement* videoFlip = gst_element_factory_make("videoflip", nullptr);

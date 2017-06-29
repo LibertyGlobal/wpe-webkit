@@ -466,33 +466,25 @@ void MediaSource::monitorSourceBuffers()
 
 ExceptionOr<void> MediaSource::setDuration(double duration)
 {
-    fprintf(stderr," %4d | %s | %s >>> ( %lf )\n",__LINE__,__FILE__,__FUNCTION__,duration);
     // 2.1 Attributes - Duration
     // https://www.w3.org/TR/2016/REC-media-source-20161117/#attributes
 
     // On setting, run the following steps:
     // 1. If the value being set is negative or NaN then throw a TypeError exception and abort these steps.
-    if (duration < 0.0 || std::isnan(duration)) {
-        fprintf(stderr," %4d | %s | %s < ( %lf )\n",__LINE__,__FILE__,__FUNCTION__,duration);
+    if (duration < 0.0 || std::isnan(duration))
         return Exception { TypeError };
-    }
 
     // 2. If the readyState attribute is not "open" then throw an InvalidStateError exception and abort these steps.
-    if (!isOpen()) {
-        fprintf(stderr," %4d | %s | %s < ( %lf )\n",__LINE__,__FILE__,__FUNCTION__,duration);
+    if (!isOpen())
         return Exception { INVALID_STATE_ERR };
-    }
 
     // 3. If the updating attribute equals true on any SourceBuffer in sourceBuffers, then throw an InvalidStateError
     // exception and abort these steps.
     for (auto& sourceBuffer : *m_sourceBuffers) {
-        if (sourceBuffer->updating()) {
-            fprintf(stderr," %4d | %s | %s < ( %lf )\n",__LINE__,__FILE__,__FUNCTION__,duration);
+        if (sourceBuffer->updating())
             return Exception { INVALID_STATE_ERR };
-        }
     }
 
-    fprintf(stderr," %4d | %s | %s < ( %lf )\n",__LINE__,__FILE__,__FUNCTION__,duration);
     // 4. Run the duration change algorithm with new duration set to the value being assigned to this attribute.
     return setDurationInternal(MediaTime::createWithDouble(duration));
 }
@@ -502,14 +494,11 @@ ExceptionOr<void> MediaSource::setDurationInternal(const MediaTime& duration)
     // 2.4.6 Duration Change
     // https://www.w3.org/TR/2016/REC-media-source-20161117/#duration-change-algorithm
 
-    fprintf(stderr," %4d | %s | %s( %lf, %lf ) >>>\n",__LINE__,__FILE__,__FUNCTION__,m_duration.toDouble(),duration.toDouble());
     MediaTime newDuration = duration;
 
     // 1. If the current value of duration is equal to new duration, then return.
-    if (newDuration == m_duration) {
-        fprintf(stderr," %4d | %s | %s <\n",__LINE__,__FILE__,__FUNCTION__);
+    if (newDuration == m_duration)
         return { };
-    }
 
 #if 1
     // Implementation to pass the YouTube MSE Conformance Tests 2016, conforming to the old MSE spec:
@@ -517,9 +506,7 @@ ExceptionOr<void> MediaSource::setDurationInternal(const MediaTime& duration)
 
     // 4. If the new duration is less than old duration, then call remove(new duration, old duration)
     // on all objects in sourceBuffers.
-    fprintf(stderr,"       %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     if (m_duration.isValid() && newDuration < m_duration) {
-        fprintf(stderr,"       %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
         for (auto& sourceBuffer : *m_sourceBuffers)
             sourceBuffer->rangeRemoval(newDuration, m_duration);
     }
@@ -552,7 +539,6 @@ ExceptionOr<void> MediaSource::setDurationInternal(const MediaTime& duration)
     LOG(MediaSource, "MediaSource::setDurationInternal(%p) - duration(%g)", this, duration.toDouble());
     m_private->durationChanged();
 
-    fprintf(stderr," %4d | %s | %s >>>\n",__LINE__,__FILE__,__FUNCTION__);
     return { };
 }
 
@@ -571,24 +557,20 @@ void MediaSource::setReadyState(ReadyState state)
 
 ExceptionOr<void> MediaSource::endOfStream(std::optional<EndOfStreamError> error)
 {
-    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     // 2.2 https://dvcs.w3.org/hg/html-media/raw-file/tip/media-source/media-source.html#widl-MediaSource-endOfStream-void-EndOfStreamError-error
     // 1. If the readyState attribute is not in the "open" state then throw an
     // INVALID_STATE_ERR exception and abort these steps.
     if (!isOpen())
         return Exception { INVALID_STATE_ERR };
 
-    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     // 2. If the updating attribute equals true on any SourceBuffer in sourceBuffers, then throw an
     // INVALID_STATE_ERR exception and abort these steps.
     if (std::any_of(m_sourceBuffers->begin(), m_sourceBuffers->end(), [](auto& sourceBuffer) { return sourceBuffer->updating(); }))
         return Exception { INVALID_STATE_ERR };
 
-    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     // 3. Run the end of stream algorithm with the error parameter set to error.
     streamEndedWithError(error);
 
-    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     return { };
 }
 
@@ -606,26 +588,18 @@ void MediaSource::streamEndedWithError(std::optional<EndOfStreamError> error)
 
     // 3.
     if (!error) {
-        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
         // ↳ If error is not set, is null, or is an empty string
         // 1. Run the duration change algorithm with new duration set to the highest end time reported by
         // the buffered attribute across all SourceBuffer objects in sourceBuffers.
         MediaTime maxEndTime;
         for (auto& sourceBuffer : *m_sourceBuffers) {
-            if (auto length = sourceBuffer->bufferedInternal().length()) {
-                MediaTime end = sourceBuffer->bufferedInternal().ranges().end(length - 1);
-                maxEndTime = std::max(end, maxEndTime);
-                fprintf(stderr," %4d | %s | %s, %lf %lf\n",__LINE__,__FILE__,__FUNCTION__,end.toDouble(),maxEndTime.toDouble());
-            }
+            if (auto length = sourceBuffer->bufferedInternal().length())
+                maxEndTime = std::max(sourceBuffer->bufferedInternal().ranges().end(length - 1), maxEndTime);
         }
-        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
         setDurationInternal(maxEndTime);
-        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
 
         // 2. Notify the media element that it now has all of the media data.
-        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
         m_private->markEndOfStream(MediaSourcePrivate::EosNoError);
-        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     } else if (error == EndOfStreamError::Network) {
         // ↳ If error is set to "network"
         ASSERT(m_mediaElement);

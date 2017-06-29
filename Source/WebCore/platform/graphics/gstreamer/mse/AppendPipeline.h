@@ -32,13 +32,13 @@
 
 namespace WebCore {
 
-// #if !LOG_DISABLED
+#if !LOG_DISABLED
 struct PadProbeInformation {
     AppendPipeline* appendPipeline;
     const char* description;
     gulong probeId;
 };
-// #endif
+#endif
 
 class AppendPipeline : public ThreadSafeRefCounted<AppendPipeline> {
 public:
@@ -136,10 +136,10 @@ private:
     bool m_appsrcNeedDataReceived;
 
     gulong m_appsrcDataLeavingProbeId;
-// #if !LOG_DISABLED
+#if !LOG_DISABLED
     struct PadProbeInformation m_demuxerDataEnteringPadProbeInformation;
     struct PadProbeInformation m_appsinkDataEnteringPadProbeInformation;
-// #endif
+#endif
 
     // Keeps track of the states of append processing, to avoid performing actions inappropriate for the current state
     // (eg: processing more samples when the last one has been detected, etc.). See setAppendState() for valid

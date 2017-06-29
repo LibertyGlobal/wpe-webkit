@@ -353,7 +353,6 @@ ExceptionOr<void> SourceBuffer::remove(const MediaTime& start, const MediaTime& 
 
 void SourceBuffer::rangeRemoval(const MediaTime& start, const MediaTime& end)
 {
-    fprintf(stderr,"       %4d | %s | %s >>>\n",__LINE__,__FILE__,__FUNCTION__);
     // 3.5.7 Range Removal
     // https://rawgit.com/w3c/media-source/7bbe4aa33c61ec025bc7acbd80354110f6a000f9/media-source.html#sourcebuffer-range-removal
     // 1. Let start equal the starting presentation timestamp for the removal range.
@@ -362,15 +361,12 @@ void SourceBuffer::rangeRemoval(const MediaTime& start, const MediaTime& end)
     m_updating = true;
 
     // 4. Queue a task to fire a simple event named updatestart at this SourceBuffer object.
-    fprintf(stderr,"       %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     scheduleEvent(eventNames().updatestartEvent);
-    fprintf(stderr,"       %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
 
     // 5. Return control to the caller and run the rest of the steps asynchronously.
     m_pendingRemoveStart = start;
     m_pendingRemoveEnd = end;
     m_removeTimer.startOneShot(0_s);
-    fprintf(stderr,"       %4d | %s | %s <\n",__LINE__,__FILE__,__FUNCTION__);
 }
 
 void SourceBuffer::abortIfUpdating()
@@ -853,11 +849,8 @@ void SourceBuffer::removeCodedFrames(const MediaTime& start, const MediaTime& en
 
 void SourceBuffer::removeTimerFired()
 {
-    fprintf(stderr,"       %4d | %s | %s >>>\n",__LINE__,__FILE__,__FUNCTION__);
-    if (isRemoved()) {
-        fprintf(stderr,"       %4d | %s | %s <\n",__LINE__,__FILE__,__FUNCTION__);
+    if (isRemoved())
         return;
-    }
 
     ASSERT(m_updating);
     ASSERT(m_pendingRemoveStart.isValid());
@@ -867,7 +860,6 @@ void SourceBuffer::removeTimerFired()
     // http://w3c.github.io/media-source/#sourcebuffer-range-removal
 
     // 6. Run the coded frame removal algorithm with start and end as the start and end of the removal range.
-    fprintf(stderr,"       %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     removeCodedFrames(m_pendingRemoveStart, m_pendingRemoveEnd);
 
     // 7. Set the updating attribute to false.
@@ -875,14 +867,11 @@ void SourceBuffer::removeTimerFired()
     m_pendingRemoveStart = MediaTime::invalidTime();
     m_pendingRemoveEnd = MediaTime::invalidTime();
 
-    fprintf(stderr,"       %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     // 8. Queue a task to fire a simple event named update at this SourceBuffer object.
     scheduleEvent(eventNames().updateEvent);
 
-    fprintf(stderr,"       %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     // 9. Queue a task to fire a simple event named updateend at this SourceBuffer object.
     scheduleEvent(eventNames().updateendEvent);
-    fprintf(stderr,"       %4d | %s | %s <\n",__LINE__,__FILE__,__FUNCTION__);
 }
 
 void SourceBuffer::evictCodedFrames(size_t newDataSize)
