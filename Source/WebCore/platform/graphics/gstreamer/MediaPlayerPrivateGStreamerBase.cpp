@@ -1681,20 +1681,26 @@ void MediaPlayerPrivateGStreamerBase::resetOpenCDMFlag()
 void MediaPlayerPrivateGStreamerBase::attemptToDecryptWithInstance(const CDMInstance& baseInstance)
 {
 #if USE(PLAYREADY)
-    auto& prinstance = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
-    auto& prSession = prinstance.prSession();
+    if( baseInstance.implementationType() == CDMInstance::ImplementationType::PlayReady )
+    {
+        auto& prinstance = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
+        auto& prSession = prinstance.prSession();
 
-    if (prSession.ready())
-        gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-            gst_structure_new("playready-session", "session", G_TYPE_POINTER, &prSession, nullptr)));
+        if (prSession.ready())
+            gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
+                                                                          gst_structure_new("playready-session", "session", G_TYPE_POINTER, &prSession, nullptr)));
+    }
 #endif
 #if USE(WIDEVINE)
-    auto& wvinstance = reinterpret_cast<const CDMInstanceWidevine&>(baseInstance);
-    auto& wvSession = wvinstance.wvSession();
+    if( baseInstance.implementationType() == CDMInstance::ImplementationType::Widevine )
+    {
+        auto& wvinstance = reinterpret_cast<const CDMInstanceWidevine&>(baseInstance);
+        auto& wvSession = wvinstance.wvSession();
 
-    if (wvSession.ready())
-        gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-            gst_structure_new("widevine-session", "session", G_TYPE_POINTER, &wvSession, nullptr)));
+        if (wvSession.ready())
+            gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
+                                                                        gst_structure_new("widevine-session", "session", G_TYPE_POINTER, &wvSession, nullptr)));
+    }
 #endif
 
 }
