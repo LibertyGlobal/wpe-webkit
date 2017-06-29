@@ -68,15 +68,21 @@ void SourceBufferPrivateGStreamer::setClient(SourceBufferPrivateClient* client)
 
 void SourceBufferPrivateGStreamer::append(const unsigned char* data, unsigned length)
 {
+    fprintf(stderr," %4d | %s | %s, %s >>>\n",__LINE__,__FILE__,__FUNCTION__,m_type.raw().ascii().data());
     ASSERT(m_mediaSource);
 
-    if (!m_sourceBufferPrivateClient)
+    if (!m_sourceBufferPrivateClient) {
+        fprintf(stderr," %4d | %s | %s <\n",__LINE__,__FILE__,__FUNCTION__);
         return;
+    }
 
-    if (m_client->append(this, data, length))
+    if (m_client->append(this, data, length)) {
+        fprintf(stderr," %4d | %s | %s <\n",__LINE__,__FILE__,__FUNCTION__);
         return;
+    }
 
     m_sourceBufferPrivateClient->sourceBufferPrivateAppendComplete(SourceBufferPrivateClient::ReadStreamFailed);
+    fprintf(stderr," %4d | %s | %s <\n",__LINE__,__FILE__,__FUNCTION__);
 }
 
 void SourceBufferPrivateGStreamer::abort()
@@ -169,8 +175,10 @@ void SourceBufferPrivateGStreamer::didReceiveSample(MediaSample& sample)
 
 void SourceBufferPrivateGStreamer::didReceiveAllPendingSamples()
 {
+    fprintf(stderr," %4d | %s | %s, %p\n",__LINE__,__FILE__,__FUNCTION__, m_sourceBufferPrivateClient);
     if (m_sourceBufferPrivateClient)
         m_sourceBufferPrivateClient->sourceBufferPrivateAppendComplete(SourceBufferPrivateClient::AppendSucceeded);
+    fprintf(stderr," %4d | %s | %s, %p\n",__LINE__,__FILE__,__FUNCTION__, m_sourceBufferPrivateClient);
 }
 
 }

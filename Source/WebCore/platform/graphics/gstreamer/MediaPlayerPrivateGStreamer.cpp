@@ -313,6 +313,7 @@ void MediaPlayerPrivateGStreamer::commitLoad()
 
     // GStreamer needs to have the pipeline set to a paused state to
     // start providing anything useful.
+    fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PAUSED )\n",__LINE__,__FILE__,__FUNCTION__);
     changePipelineState(GST_STATE_PAUSED);
 
     setDownloadBuffering();
@@ -395,6 +396,7 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
         gst_query_parse_position(query, 0, &position);
     gst_query_unref(query);
 
+    fprintf(stderr," %4d | %s | %s playbackPosition( %lld )\n",__LINE__,__FILE__,__FUNCTION__,position);
     GST_DEBUG("Position %" GST_TIME_FORMAT, GST_TIME_ARGS(position));
 
     double result = 0.0f;
@@ -404,6 +406,8 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
         result = static_cast<double>(timeValue.tv_sec + (timeValue.tv_usec / 1000000.0));
     } else if (m_canFallBackToLastFinishedSeekPosition)
         result = m_seekTime;
+
+    fprintf(stderr," %4d | %s | %s playbackPosition( %llf )\n",__LINE__,__FILE__,__FUNCTION__,result);
 
 #if PLATFORM(BCM_NEXUS) || 1
     // implement getting pts time from broadcom decoder directly for seek functionality
@@ -437,11 +441,14 @@ GstSeekFlags MediaPlayerPrivateGStreamer::hardwareDependantSeekFlags()
 
 void MediaPlayerPrivateGStreamer::readyTimerFired()
 {
+    fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_NULL )\n",__LINE__,__FILE__,__FUNCTION__);
     changePipelineState(GST_STATE_NULL);
 }
 
 bool MediaPlayerPrivateGStreamer::changePipelineState(GstState newState)
 {
+    fprintf(stderr,"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX changePipelineState( %d )\n",newState);
+
     ASSERT(m_pipeline);
 
     GstState currentState;
@@ -494,6 +501,7 @@ void MediaPlayerPrivateGStreamer::play()
         return;
     }
 
+    fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PLAYING )\n",__LINE__,__FILE__,__FUNCTION__);
     if (changePipelineState(GST_STATE_PLAYING)) {
         m_isEndReached = false;
         m_delayingLoad = false;
@@ -513,6 +521,7 @@ void MediaPlayerPrivateGStreamer::pause()
     if (currentState < GST_STATE_PAUSED && pendingState <= GST_STATE_PAUSED)
         return;
 
+    fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PAUSED )\n",__LINE__,__FILE__,__FUNCTION__);
     if (changePipelineState(GST_STATE_PAUSED)) {
         m_paused = true;
         GST_INFO("Pause");
@@ -619,6 +628,7 @@ void MediaPlayerPrivateGStreamer::seek(float time)
         if (m_isEndReached) {
             GST_DEBUG("[Seek] reset pipeline");
             m_resetPipeline = true;
+            fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PAUSED )\n",__LINE__,__FILE__,__FUNCTION__);
             if (!changePipelineState(GST_STATE_PAUSED))
                 loadingFailed(MediaPlayer::Empty);
         }
@@ -696,8 +706,10 @@ void MediaPlayerPrivateGStreamer::updatePlaybackRate()
         GstState pending;
 
         gst_element_get_state(m_pipeline.get(), &state, &pending, 0);
-        if (state != GST_STATE_PLAYING && pending != GST_STATE_PLAYING)
+        if (state != GST_STATE_PLAYING && pending != GST_STATE_PLAYING) {
+            fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PLAYING )\n",__LINE__,__FILE__,__FUNCTION__);
             changePipelineState(GST_STATE_PLAYING);
+        }
         m_playbackRatePause = false;
     }
 
@@ -966,8 +978,10 @@ void MediaPlayerPrivateGStreamer::setRate(float rate)
     if (!rate) {
         m_changingRate = false;
         m_playbackRatePause = true;
-        if (state != GST_STATE_PAUSED && pending != GST_STATE_PAUSED)
+        if (state != GST_STATE_PAUSED && pending != GST_STATE_PAUSED) {
+            fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PAUSED )\n",__LINE__,__FILE__,__FUNCTION__);
             changePipelineState(GST_STATE_PAUSED);
+        }
         return;
     }
 
@@ -1050,7 +1064,7 @@ void MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
     // We ignore state changes from internal elements. They are forwarded to playbin2 anyway.
     bool messageSourceIsPlaybin = GST_MESSAGE_SRC(message) == reinterpret_cast<GstObject*>(m_pipeline.get());
 
-    GST_TRACE("Message %s received from element %s", GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_SRC_NAME(message));
+    GST_INFO("Message %s received from element %s", GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_SRC_NAME(message));
     switch (GST_MESSAGE_TYPE(message)) {
     case GST_MESSAGE_ERROR:
 #if USE(OCDM) && (ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA))
@@ -1146,6 +1160,7 @@ void MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
             GST_INFO("Element %s requested state change to %s", elementName.get(),
                 gst_element_state_get_name(requestedState));
             m_requestedState = requestedState;
+            fprintf(stderr," %4d | %s | %s changePipelineState( %% )\n",__LINE__,__FILE__,__FUNCTION__);
             if (!changePipelineState(requestedState))
                 loadingFailed(MediaPlayer::Empty);
         }
@@ -1179,7 +1194,9 @@ void MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
                     if (result != GST_INSTALL_PLUGINS_SUCCESS)
                         return;
 
+                    fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_READY )\n",__LINE__,__FILE__,__FUNCTION__);
                     changePipelineState(GST_STATE_READY);
+                    fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PAUSED )\n",__LINE__,__FILE__,__FUNCTION__);
                     changePipelineState(GST_STATE_PAUSED);
                 });
                 GUniquePtr<char> detail(gst_missing_plugin_message_get_installer_detail(message));
@@ -1610,8 +1627,10 @@ void MediaPlayerPrivateGStreamer::cancelLoad()
     if (m_networkState < MediaPlayer::Loading || m_networkState == MediaPlayer::Loaded)
         return;
 
-    if (m_pipeline)
+    if (m_pipeline) {
+        fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_READY )\n",__LINE__,__FILE__,__FUNCTION__);
         changePipelineState(GST_STATE_READY);
+    }
 }
 
 void MediaPlayerPrivateGStreamer::asyncStateChangeDone()
@@ -1636,6 +1655,7 @@ void MediaPlayerPrivateGStreamer::asyncStateChangeDone()
             // The pipeline can still have a pending state. In this case a position query will fail.
             // Right now we can use m_seekTime as a fallback.
             m_canFallBackToLastFinishedSeekPosition = true;
+            fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
             timeChanged();
         }
     } else
@@ -1722,6 +1742,7 @@ void MediaPlayerPrivateGStreamer::updateStates()
 
             if (didBuffering && !m_buffering && !m_paused && m_playbackRate) {
                 GST_DEBUG("[Buffering] Restarting playback.");
+                fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PLAYING )\n",__LINE__,__FILE__,__FUNCTION__);
                 changePipelineState(GST_STATE_PLAYING);
             }
         } else if (state == GST_STATE_PLAYING) {
@@ -1729,6 +1750,7 @@ void MediaPlayerPrivateGStreamer::updateStates()
 
             if ((m_buffering && !isLiveStream()) || !m_playbackRate) {
                 GST_DEBUG("[Buffering] Pausing stream for buffering.");
+                fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PAUSED )\n",__LINE__,__FILE__,__FUNCTION__);
                 changePipelineState(GST_STATE_PAUSED);
             }
         } else
@@ -1764,8 +1786,10 @@ void MediaPlayerPrivateGStreamer::updateStates()
         } else if (state == GST_STATE_PLAYING)
             m_paused = false;
 
-        if (!m_paused && m_playbackRate)
+        if (!m_paused && m_playbackRate) {
+            fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PAUSED )\n",__LINE__,__FILE__,__FUNCTION__);
             changePipelineState(GST_STATE_PLAYING);
+        }
 
         m_networkState = MediaPlayer::Loading;
         break;
@@ -1874,6 +1898,7 @@ bool MediaPlayerPrivateGStreamer::loadNextLocation()
 
             // Reset pipeline state.
             m_resetPipeline = true;
+            fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_READY )\n",__LINE__,__FILE__,__FUNCTION__);
             changePipelineState(GST_STATE_READY);
 
             GstState state;
@@ -1882,6 +1907,7 @@ bool MediaPlayerPrivateGStreamer::loadNextLocation()
                 // Set the new uri and start playing.
                 g_object_set(m_pipeline.get(), "uri", newUrl.string().utf8().data(), nullptr);
                 m_url = newUrl;
+                fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PLAYING )\n",__LINE__,__FILE__,__FUNCTION__);
                 changePipelineState(GST_STATE_PLAYING);
                 return true;
             }
@@ -1899,12 +1925,16 @@ void MediaPlayerPrivateGStreamer::loadStateChanged()
 
 void MediaPlayerPrivateGStreamer::timeChanged()
 {
+    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     updateStates();
+    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     m_player->timeChanged();
+    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
 }
 
 void MediaPlayerPrivateGStreamer::didEnd()
 {
+    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     // Synchronize position and duration values to not confuse the
     // HTMLMediaElement. In some cases like reverse playback the
     // position is not always reported as 0 for instance.
@@ -1915,15 +1945,19 @@ void MediaPlayerPrivateGStreamer::didEnd()
     m_isEndReached = true;
     timeChanged();
 
+    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     if (!m_player->client().mediaPlayerIsLooping()) {
+        m_downloadFinished = false;
         m_paused = true;
         m_durationAtEOS = durationMediaTime().toDouble();
         // FIXME: there's a bug in playbin handling the context messages that causes replaying a video
         // not to work if we leave the pipeline in READY state. We set it to NULL here to workaround
         // that issue, but this should be change back to READY when it gets fixed upstream.
+        fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_NULL )\n",__LINE__,__FILE__,__FUNCTION__);
         changePipelineState(GST_STATE_NULL);
-        m_downloadFinished = false;
+        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     }
+    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
 }
 
 void MediaPlayerPrivateGStreamer::durationChanged()

@@ -110,7 +110,7 @@ SourceBuffer::SourceBuffer(Ref<SourceBufferPrivate>&& sourceBufferPrivate, Media
     : ActiveDOMObject(source->scriptExecutionContext())
     , m_private(WTFMove(sourceBufferPrivate))
     , m_source(source)
-    , m_asyncEventQueue(*this)
+    , m_asyncEventQueue(*this,true)
     , m_appendBufferTimer(*this, &SourceBuffer::appendBufferTimerFired)
     , m_appendWindowStart(MediaTime::zeroTime())
     , m_appendWindowEnd(MediaTime::positiveInfiniteTime())
@@ -353,6 +353,7 @@ ExceptionOr<void> SourceBuffer::remove(const MediaTime& start, const MediaTime& 
 
 void SourceBuffer::rangeRemoval(const MediaTime& start, const MediaTime& end)
 {
+    fprintf(stderr,"       %4d | %s | %s >>>\n",__LINE__,__FILE__,__FUNCTION__);
     // 3.5.7 Range Removal
     // https://rawgit.com/w3c/media-source/7bbe4aa33c61ec025bc7acbd80354110f6a000f9/media-source.html#sourcebuffer-range-removal
     // 1. Let start equal the starting presentation timestamp for the removal range.
@@ -361,12 +362,15 @@ void SourceBuffer::rangeRemoval(const MediaTime& start, const MediaTime& end)
     m_updating = true;
 
     // 4. Queue a task to fire a simple event named updatestart at this SourceBuffer object.
+    fprintf(stderr,"       %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     scheduleEvent(eventNames().updatestartEvent);
+    fprintf(stderr,"       %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
 
     // 5. Return control to the caller and run the rest of the steps asynchronously.
     m_pendingRemoveStart = start;
     m_pendingRemoveEnd = end;
     m_removeTimer.startOneShot(0_s);
+    fprintf(stderr,"       %4d | %s | %s <\n",__LINE__,__FILE__,__FUNCTION__);
 }
 
 void SourceBuffer::abortIfUpdating()
@@ -502,6 +506,7 @@ bool SourceBuffer::isRemoved() const
 
 void SourceBuffer::scheduleEvent(const AtomicString& eventName)
 {
+    LOG(MediaSource, "SourceBuffer::scheduleEvent(%p) - '%s'", this,eventName.string().ascii().data());
     auto event = Event::create(eventName, false, false);
     event->setTarget(this);
 
@@ -691,7 +696,7 @@ static PlatformTimeRanges removeSamplesFromTrackBuffer(const DecodeOrderSampleMa
 #endif
 
         RefPtr<MediaSample>& sample = sampleIt.second;
-        LOG(MediaSource, "SourceBuffer::%s(%p) - removing sample(%s)", logPrefix, buffer, toString(*sampleIt.second).utf8().data());
+//         LOG(MediaSource, "SourceBuffer::%s(%p) - removing sample(%s)", logPrefix, buffer, toString(*sampleIt.second).utf8().data());
 
         // Remove the erased samples from the TrackBuffer sample map.
         trackBuffer.samples.removeSample(sample.get());
@@ -848,8 +853,11 @@ void SourceBuffer::removeCodedFrames(const MediaTime& start, const MediaTime& en
 
 void SourceBuffer::removeTimerFired()
 {
-    if (isRemoved())
+    fprintf(stderr,"       %4d | %s | %s >>>\n",__LINE__,__FILE__,__FUNCTION__);
+    if (isRemoved()) {
+        fprintf(stderr,"       %4d | %s | %s <\n",__LINE__,__FILE__,__FUNCTION__);
         return;
+    }
 
     ASSERT(m_updating);
     ASSERT(m_pendingRemoveStart.isValid());
@@ -859,6 +867,7 @@ void SourceBuffer::removeTimerFired()
     // http://w3c.github.io/media-source/#sourcebuffer-range-removal
 
     // 6. Run the coded frame removal algorithm with start and end as the start and end of the removal range.
+    fprintf(stderr,"       %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     removeCodedFrames(m_pendingRemoveStart, m_pendingRemoveEnd);
 
     // 7. Set the updating attribute to false.
@@ -866,11 +875,14 @@ void SourceBuffer::removeTimerFired()
     m_pendingRemoveStart = MediaTime::invalidTime();
     m_pendingRemoveEnd = MediaTime::invalidTime();
 
+    fprintf(stderr,"       %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     // 8. Queue a task to fire a simple event named update at this SourceBuffer object.
     scheduleEvent(eventNames().updateEvent);
 
+    fprintf(stderr,"       %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     // 9. Queue a task to fire a simple event named updateend at this SourceBuffer object.
     scheduleEvent(eventNames().updateendEvent);
+    fprintf(stderr,"       %4d | %s | %s <\n",__LINE__,__FILE__,__FUNCTION__);
 }
 
 void SourceBuffer::evictCodedFrames(size_t newDataSize)
@@ -2002,7 +2014,7 @@ void SourceBuffer::monitorBufferingRate()
 
     m_averageBufferRate += (interval * ExponentialMovingAverageCoefficient) * (rateSinceLastMonitor - m_averageBufferRate);
 
-    LOG(MediaSource, "SourceBuffer::monitorBufferingRate(%p) - m_avegareBufferRate: %lf", this, m_averageBufferRate);
+//     LOG(MediaSource, "SourceBuffer::monitorBufferingRate(%p) - m_avegareBufferRate: %lf", this, m_averageBufferRate);
 }
 
 void SourceBuffer::updateBufferedFromTrackBuffers()

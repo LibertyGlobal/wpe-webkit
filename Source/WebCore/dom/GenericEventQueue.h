@@ -39,7 +39,7 @@ class Timer;
 
 class GenericEventQueue {
 public:
-    explicit GenericEventQueue(EventTarget&);
+    explicit GenericEventQueue(EventTarget&,bool debug = false);
     ~GenericEventQueue();
 
     void enqueueEvent(RefPtr<Event>&&);
@@ -60,6 +60,7 @@ private:
     Deque<RefPtr<Event>> m_pendingEvents;
     bool m_isClosed;
     bool m_isSuspended { false };
+    bool m_debug;
 };
 
 } // namespace WebCore

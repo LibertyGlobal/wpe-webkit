@@ -34,9 +34,10 @@
 
 namespace WebCore {
 
-GenericEventQueue::GenericEventQueue(EventTarget& owner)
+GenericEventQueue::GenericEventQueue(EventTarget& owner, bool debug)
     : m_owner(owner)
     , m_isClosed(false)
+    , m_debug( debug )
 {
 }
 
@@ -67,7 +68,11 @@ void GenericEventQueue::dispatchOneEvent()
     Ref<EventTarget> protect(m_owner);
     RefPtr<Event> event = m_pendingEvents.takeFirst();
     EventTarget& target = event->target() ? *event->target() : m_owner;
+    if( m_debug )
+        fprintf(stderr," %4d | %s | %s, %s, %p >>>\n",__LINE__,__FILE__,__FUNCTION__,event->type().string().ascii().data(),&target);
     target.dispatchEvent(*event);
+    if( m_debug )
+        fprintf(stderr," %4d | %s | %s, %s, %p <\n",__LINE__,__FILE__,__FUNCTION__,event->type().string().ascii().data(),&target);
 }
 
 void GenericEventQueue::close()

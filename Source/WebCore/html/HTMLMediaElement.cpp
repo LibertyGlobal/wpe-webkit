@@ -433,7 +433,7 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tagName, Document& docum
     , m_scanTimer(*this, &HTMLMediaElement::scanTimerFired)
     , m_playbackControlsManagerBehaviorRestrictionsTimer(*this, &HTMLMediaElement::playbackControlsManagerBehaviorRestrictionsTimerFired)
     , m_seekToPlaybackPositionEndedTimer(*this, &HTMLMediaElement::seekToPlaybackPositionEndedTimerFired)
-    , m_asyncEventQueue(*this)
+    , m_asyncEventQueue(*this,true)
     , m_lastTimeUpdateEventMovieTime(MediaTime::positiveInfiniteTime())
     , m_firstTimePlaying(true)
     , m_playing(false)
@@ -1277,6 +1277,7 @@ void HTMLMediaElement::prepareForLoad()
 
         // 6.6 - If the paused attribute is false, then set it to true.
         m_paused = true;
+        fprintf(stderr," %4d | %s | %s SETPAUSE: %d\n",__LINE__,__FILE__,__FUNCTION__,m_paused);
 
         // 6.7 - If seeking is true, set it to false.
         clearSeeking();
@@ -1726,8 +1727,10 @@ void HTMLMediaElement::updateActiveTextTrackCues(const MediaTime& movieTime)
     // element. (In the other cases, such as explicit seeks, relevant events get
     // fired as part of the overall process of changing the current playback
     // position.)
-    if (!m_paused && m_lastSeekTime <= lastTime)
+    if (!m_paused && m_lastSeekTime <= lastTime) {
+        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
         scheduleTimeupdateEvent(false);
+    }
 
     // Explicitly cache vector sizes, as their content is constant from here.
     size_t currentCuesSize = currentCues.size();
@@ -2430,6 +2433,7 @@ void HTMLMediaElement::setReadyState(MediaPlayer::ReadyState state)
         if (wasPotentiallyPlaying && m_readyState < HAVE_FUTURE_DATA) {
             // 4.8.10.8
             invalidateCachedTime();
+            fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
             scheduleTimeupdateEvent(false);
             scheduleEvent(eventNames().waitingEvent);
         }
@@ -2492,6 +2496,7 @@ void HTMLMediaElement::setReadyState(MediaPlayer::ReadyState state)
         auto success = canTransitionFromAutoplayToPlay();
         if (success) {
             m_paused = false;
+            fprintf(stderr," %4d | %s | %s SETPAUSE: %d\n",__LINE__,__FILE__,__FUNCTION__,m_paused);
             invalidateCachedTime();
             setPlaybackWithoutUserGesture(PlaybackWithoutUserGesture::Started);
             m_playbackStartedTime = currentMediaTime().toDouble();
@@ -3009,6 +3014,7 @@ void HTMLMediaElement::seekTask()
         LOG(Media, "HTMLMediaElement::seekTask(%p) - seek to %s ignored", this, toString(time).utf8().data());
         if (time == now) {
             scheduleEvent(eventNames().seekingEvent);
+            fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
             scheduleTimeupdateEvent(false);
             scheduleEvent(eventNames().seekedEvent);
         }
@@ -3052,6 +3058,7 @@ void HTMLMediaElement::finishSeek()
     // Handled by mediaPlayerTimeChanged().
 
     // 16 - Queue a task to fire a simple event named timeupdate at the element.
+    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     scheduleEvent(eventNames().timeupdateEvent);
 
     // 17 - Queue a task to fire a simple event named seeked at the element.
@@ -3456,6 +3463,7 @@ bool HTMLMediaElement::playInternal()
 
     if (m_paused) {
         m_paused = false;
+        fprintf(stderr," %4d | %s | %s SETPAUSE: %d\n",__LINE__,__FILE__,__FUNCTION__,m_paused);
         invalidateCachedTime();
         m_playbackStartedTime = currentMediaTime().toDouble();
         scheduleEvent(eventNames().playEvent);
@@ -3548,6 +3556,7 @@ void HTMLMediaElement::pauseInternal()
 
     if (!m_paused) {
         m_paused = true;
+        fprintf(stderr," %4d | %s | %s SETPAUSE: %d\n",__LINE__,__FILE__,__FUNCTION__,m_paused);
         scheduleTimeupdateEvent(false);
         scheduleEvent(eventNames().pauseEvent);
         m_promiseTaskQueue.enqueueTask([this]() {
@@ -3893,6 +3902,7 @@ void HTMLMediaElement::playbackProgressTimerFired()
         }
     }
     
+    fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
     scheduleTimeupdateEvent(true);
 
     if (!requestedPlaybackRate())
@@ -3924,6 +3934,7 @@ void HTMLMediaElement::scheduleTimeupdateEvent(bool periodicEvent)
     // event at a given time so filter here
     MediaTime movieTime = currentMediaTime();
     if (movieTime != m_lastTimeUpdateEventMovieTime) {
+        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
         scheduleEvent(eventNames().timeupdateEvent);
         m_clockTimeAtLastUpdateEvent = now;
         m_lastTimeUpdateEventMovieTime = movieTime;
@@ -4784,8 +4795,10 @@ void HTMLMediaElement::mediaPlayerTimeChanged(MediaPlayer*)
     // Always call scheduleTimeupdateEvent when the media engine reports a time discontinuity, 
     // it will only queue a 'timeupdate' event if we haven't already posted one at the current
     // movie time.
-    else
+    else {
+        fprintf(stderr," %4d | %s | %s\n",__LINE__,__FILE__,__FUNCTION__);
         scheduleTimeupdateEvent(false);
+    }
 
     MediaTime now = currentMediaTime();
     MediaTime dur = durationMediaTime();
@@ -4806,6 +4819,7 @@ void HTMLMediaElement::mediaPlayerTimeChanged(MediaPlayer*)
             if (!m_mediaController && !m_paused) {
                 // changes paused to true and fires a simple event named pause at the media element.
                 m_paused = true;
+                fprintf(stderr," %4d | %s | %s SETPAUSE: %d\n",__LINE__,__FILE__,__FUNCTION__,m_paused);
                 scheduleEvent(eventNames().pauseEvent);
                 m_mediaSession->clientWillPausePlayback();
             }
@@ -4843,6 +4857,7 @@ void HTMLMediaElement::mediaPlayerTimeChanged(MediaPlayer*)
                 if (!wasSeeking)
                     addBehaviorRestrictionsOnEndIfNecessary();
                 m_paused = true;
+                fprintf(stderr," %4d | %s | %s SETPAUSE: %d\n",__LINE__,__FILE__,__FUNCTION__,m_paused);
                 setPlaying(false);
             }
         } else
@@ -5198,32 +5213,48 @@ Ref<TimeRanges> HTMLMediaElement::seekable() const
 
 bool HTMLMediaElement::potentiallyPlaying() const
 {
-    if (isBlockedOnMediaController())
+    if (isBlockedOnMediaController()) {
+        fprintf(stderr," %4d | %s | %s, BLOCKED\n",__LINE__,__FILE__,__FUNCTION__);
         return false;
+    }
     
-    if (!couldPlayIfEnoughData())
+    if (!couldPlayIfEnoughData()) {
+        fprintf(stderr," %4d | %s | %s, CAN't PLAY\n",__LINE__,__FILE__,__FUNCTION__);
         return false;
+    }
 
-    if (m_readyState >= HAVE_FUTURE_DATA)
+    if (m_readyState >= HAVE_FUTURE_DATA) {
+        fprintf(stderr," %4d | %s | %s, GO'\n",__LINE__,__FILE__,__FUNCTION__);
         return true;
+    }
 
+    fprintf(stderr," %4d | %s | %s, %d\n",__LINE__,__FILE__,__FUNCTION__,m_readyStateMaximum >= HAVE_FUTURE_DATA && m_readyState < HAVE_FUTURE_DATA);
     return m_readyStateMaximum >= HAVE_FUTURE_DATA && m_readyState < HAVE_FUTURE_DATA;
 }
 
 bool HTMLMediaElement::couldPlayIfEnoughData() const
 {
-    if (paused())
+    if (paused()) {
+        fprintf(stderr," %4d | %s | %s, PAUSED\n",__LINE__,__FILE__,__FUNCTION__);
         return false;
+    }
 
-    if (endedPlayback())
+    if (endedPlayback()) {
+        fprintf(stderr," %4d | %s | %s, ENDED\n",__LINE__,__FILE__,__FUNCTION__);
         return false;
+    }
 
-    if (stoppedDueToErrors())
+    if (stoppedDueToErrors()) {
+        fprintf(stderr," %4d | %s | %s, STOPPED DUE TO ERRORS\n",__LINE__,__FILE__,__FUNCTION__);
         return false;
+    }
 
-    if (pausedForUserInteraction())
+    if (pausedForUserInteraction()) {
+        fprintf(stderr," %4d | %s | %s, PAUSED FOR UI\n",__LINE__,__FILE__,__FUNCTION__);
         return false;
+    }
 
+    fprintf(stderr," %4d | %s | %s, CAN PLAY\n",__LINE__,__FILE__,__FUNCTION__);
     return true;
 }
 
