@@ -438,8 +438,8 @@ void AppendPipeline::setAppendState(AppendState newAppendState)
     bool ok = false;
     bool mustCheckEndOfAppend = false;
 
-    if( oldAppendState != newAppendState )
-        fprintf(stderr," %4d | %s | %s, %s => %s\n",__LINE__,__FILE__,__FUNCTION__, dumpAppendState(oldAppendState), dumpAppendState(newAppendState));
+//     if( oldAppendState != newAppendState )
+//         fprintf(stderr," %4d | %s | %s, %s => %s\n",__LINE__,__FILE__,__FUNCTION__, dumpAppendState(oldAppendState), dumpAppendState(newAppendState));
 
     switch (oldAppendState) {
     case AppendState::NotStarted:
@@ -736,7 +736,7 @@ void AppendPipeline::appsinkNewSample(GstSample* sample)
 
         RefPtr<GStreamerMediaSample> mediaSample = WebCore::GStreamerMediaSample::create(sample, m_presentationSize, trackId());
 
-        GST_TRACE("append: trackId=%s PTS=%f presentationSize=%.0fx%.0f", mediaSample->trackID().string().utf8().data(), mediaSample->presentationTime().toFloat(), mediaSample->presentationSize().width(), mediaSample->presentationSize().height());
+//         GST_TRACE("append: trackId=%s PTS=%f presentationSize=%.0fx%.0f", mediaSample->trackID().string().utf8().data(), mediaSample->presentationTime().toFloat(), mediaSample->presentationSize().width(), mediaSample->presentationSize().height());
 
         // If we're beyond the duration, ignore this sample and the remaining ones.
         MediaTime duration = m_mediaSourceClient->duration();
@@ -942,7 +942,7 @@ GstFlowReturn AppendPipeline::handleNewAppsinkSample(GstElement* appsink)
     GstStructure* structure = gst_structure_new("appsink-new-sample", "new-sample", GST_TYPE_SAMPLE, sample.get(), nullptr);
     GstMessage* message = gst_message_new_application(GST_OBJECT(appsink), structure);
     gst_bus_post(m_bus.get(), message);
-    GST_TRACE("appsink-new-sample message posted to bus");
+//     GST_TRACE("appsink-new-sample message posted to bus");
 
     m_newSampleCondition.wait(m_newSampleLock);
     // We've been awaken because the sample was processed or because of
@@ -971,11 +971,11 @@ void AppendPipeline::connectDemuxerSrcPadToAppsinkFromAnyThread(GstPad* demuxerS
     // Only one stream per demuxer is supported.
     ASSERT(!gst_pad_is_linked(appsinkSinkPad.get()));
 
-    gint64 timeLength = 0;
-    if (gst_element_query_duration(m_demux.get(), GST_FORMAT_TIME, &timeLength)
-        && static_cast<guint64>(timeLength) != GST_CLOCK_TIME_NONE)
-        m_initialDuration = MediaTime(GST_TIME_AS_USECONDS(timeLength), G_USEC_PER_SEC);
-    else
+//     gint64 timeLength = 0;
+//     if (gst_element_query_duration(m_demux.get(), GST_FORMAT_TIME, &timeLength)
+//         && static_cast<guint64>(timeLength) != GST_CLOCK_TIME_NONE)
+//         m_initialDuration = MediaTime(GST_TIME_AS_USECONDS(timeLength), G_USEC_PER_SEC);
+//     else
         m_initialDuration = MediaTime::positiveInfiniteTime();
 
     if (WTF::isMainThread())
@@ -1061,7 +1061,7 @@ void AppendPipeline::connectDemuxerSrcPadToAppsink(GstPad* demuxerSrcPad)
 
     if (m_initialDuration > m_mediaSourceClient->duration()
         || (m_mediaSourceClient->duration().isInvalid() && m_initialDuration > MediaTime::zeroTime()))
-        m_mediaSourceClient->durationChanged(m_initialDuration);
+            m_mediaSourceClient->durationChanged(m_initialDuration);
 
     m_oldTrack = m_track;
 
