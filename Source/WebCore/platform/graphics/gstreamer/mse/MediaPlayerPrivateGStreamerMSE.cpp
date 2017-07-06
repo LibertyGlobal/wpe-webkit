@@ -224,6 +224,7 @@ void MediaPlayerPrivateGStreamerMSE::configurePlaySink()
 
 bool MediaPlayerPrivateGStreamerMSE::changePipelineState(GstState newState)
 {
+    fprintf(stderr," %4d | %s | %s changePipelineState( %d )\n",__LINE__,__FILE__,__FUNCTION__,newState);
     if (seeking()) {
         GST_DEBUG("Rejected state change to %s while seeking",
             gst_element_state_get_name(newState));
@@ -297,6 +298,7 @@ bool MediaPlayerPrivateGStreamerMSE::doSeek()
             GST_DEBUG("[Seek] reset pipeline");
             m_resetPipeline = true;
             m_seeking = false;
+            fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PAUSED )\n",__LINE__,__FILE__,__FUNCTION__);
             if (!changePipelineState(GST_STATE_PAUSED))
                 loadingFailed(MediaPlayer::Empty);
             else
@@ -449,6 +451,7 @@ void MediaPlayerPrivateGStreamerMSE::setReadyState(MediaPlayer::ReadyState ready
 
     if (m_readyState == MediaPlayer::HaveMetadata && oldReadyState > MediaPlayer::HaveMetadata && isPlaying) {
         GST_TRACE("Changing pipeline to PAUSED...");
+        fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PAUSED )\n",__LINE__,__FILE__,__FUNCTION__);
         bool ok = changePipelineState(GST_STATE_PAUSED);
         GST_TRACE("Changed pipeline to PAUSED: %s", ok ? "Success" : "Error");
     }
@@ -474,8 +477,10 @@ void MediaPlayerPrivateGStreamerMSE::seekCompleted()
 
     doSeek();
 
-    if (!seeking() && m_readyState >= MediaPlayer::HaveFutureData)
+    if (!seeking() && m_readyState >= MediaPlayer::HaveFutureData) {
+        fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PLAYING )\n",__LINE__,__FILE__,__FUNCTION__);
         changePipelineState(GST_STATE_PLAYING);
+    }
 
     if (!seeking())
         m_player->timeChanged();
@@ -580,7 +585,7 @@ void MediaPlayerPrivateGStreamerMSE::updateStates()
             ASSERT_NOT_REACHED();
             break;
         }
-#if PLATFORM(BROADCOM)
+#if PLATFORM(BROADCOM) || 1
         // this code path needs a proper review in case it can be generalized to all platforms.
         bool buffering = !isTimeBuffered(currentMediaTime());
 #else
@@ -596,6 +601,7 @@ void MediaPlayerPrivateGStreamerMSE::updateStates()
 
             if (!seeking() && !buffering && !m_paused && m_playbackRate) {
                 GST_DEBUG("[Buffering] Restarting playback.");
+                fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PLAYING )\n",__LINE__,__FILE__,__FUNCTION__);
                 changePipelineState(GST_STATE_PLAYING);
             }
         } else if (state == GST_STATE_PLAYING) {
@@ -603,6 +609,7 @@ void MediaPlayerPrivateGStreamerMSE::updateStates()
 
             if ((buffering && !isLiveStream()) || !m_playbackRate) {
                 GST_DEBUG("[Buffering] Pausing stream for buffering.");
+                fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PAUSED )\n",__LINE__,__FILE__,__FUNCTION__);
                 changePipelineState(GST_STATE_PAUSED);
             }
         } else
@@ -639,8 +646,10 @@ void MediaPlayerPrivateGStreamerMSE::updateStates()
         } else if (state == GST_STATE_PLAYING)
             m_paused = false;
 
-        if (!m_paused && m_playbackRate)
+        if (!m_paused && m_playbackRate) {
+            fprintf(stderr," %4d | %s | %s changePipelineState( GST_STATE_PLAYING )\n",__LINE__,__FILE__,__FUNCTION__);
             changePipelineState(GST_STATE_PLAYING);
+        }
 
         m_networkState = MediaPlayer::Loading;
         break;

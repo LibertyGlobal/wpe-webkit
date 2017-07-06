@@ -192,8 +192,10 @@ static void clearFlags(unsigned& value, unsigned flags)
 #undef LOG_DISABLED
 #endif
 
-#define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
+#define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
 #define LOG_DISABLED 0
+// #define LOG( x, s... )  ({ })
+// #define LOG_DISABLED 1
 
 #if !LOG_DISABLED
 static String urlForLoggingMedia(const URL& url)
@@ -433,7 +435,8 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tagName, Document& docum
     , m_scanTimer(*this, &HTMLMediaElement::scanTimerFired)
     , m_playbackControlsManagerBehaviorRestrictionsTimer(*this, &HTMLMediaElement::playbackControlsManagerBehaviorRestrictionsTimerFired)
     , m_seekToPlaybackPositionEndedTimer(*this, &HTMLMediaElement::seekToPlaybackPositionEndedTimerFired)
-    , m_asyncEventQueue(*this,true)
+//     , m_asyncEventQueue(*this,true)
+    , m_asyncEventQueue(*this)
     , m_lastTimeUpdateEventMovieTime(MediaTime::positiveInfiniteTime())
     , m_firstTimePlaying(true)
     , m_playing(false)
@@ -5192,47 +5195,47 @@ Ref<TimeRanges> HTMLMediaElement::seekable() const
 bool HTMLMediaElement::potentiallyPlaying() const
 {
     if (isBlockedOnMediaController()) {
-        fprintf(stderr," %4d | %s | %s, BLOCKED\n",__LINE__,__FILE__,__FUNCTION__);
+//         fprintf(stderr," %4d | %s | %s, BLOCKED\n",__LINE__,__FILE__,__FUNCTION__);
         return false;
     }
     
     if (!couldPlayIfEnoughData()) {
-        fprintf(stderr," %4d | %s | %s, CAN't PLAY\n",__LINE__,__FILE__,__FUNCTION__);
+//         fprintf(stderr," %4d | %s | %s, CAN't PLAY\n",__LINE__,__FILE__,__FUNCTION__);
         return false;
     }
 
     if (m_readyState >= HAVE_FUTURE_DATA) {
-        fprintf(stderr," %4d | %s | %s, GO'\n",__LINE__,__FILE__,__FUNCTION__);
+//         fprintf(stderr," %4d | %s | %s, GO'\n",__LINE__,__FILE__,__FUNCTION__);
         return true;
     }
 
-    fprintf(stderr," %4d | %s | %s, %d\n",__LINE__,__FILE__,__FUNCTION__,m_readyStateMaximum >= HAVE_FUTURE_DATA && m_readyState < HAVE_FUTURE_DATA);
+//     fprintf(stderr," %4d | %s | %s, %d\n",__LINE__,__FILE__,__FUNCTION__,m_readyStateMaximum >= HAVE_FUTURE_DATA && m_readyState < HAVE_FUTURE_DATA);
     return m_readyStateMaximum >= HAVE_FUTURE_DATA && m_readyState < HAVE_FUTURE_DATA;
 }
 
 bool HTMLMediaElement::couldPlayIfEnoughData() const
 {
     if (paused()) {
-        fprintf(stderr," %4d | %s | %s, PAUSED\n",__LINE__,__FILE__,__FUNCTION__);
+//         fprintf(stderr," %4d | %s | %s, PAUSED\n",__LINE__,__FILE__,__FUNCTION__);
         return false;
     }
 
     if (endedPlayback()) {
-        fprintf(stderr," %4d | %s | %s, ENDED\n",__LINE__,__FILE__,__FUNCTION__);
+//         fprintf(stderr," %4d | %s | %s, ENDED\n",__LINE__,__FILE__,__FUNCTION__);
         return false;
     }
 
     if (stoppedDueToErrors()) {
-        fprintf(stderr," %4d | %s | %s, STOPPED DUE TO ERRORS\n",__LINE__,__FILE__,__FUNCTION__);
+//         fprintf(stderr," %4d | %s | %s, STOPPED DUE TO ERRORS\n",__LINE__,__FILE__,__FUNCTION__);
         return false;
     }
 
     if (pausedForUserInteraction()) {
-        fprintf(stderr," %4d | %s | %s, PAUSED FOR UI\n",__LINE__,__FILE__,__FUNCTION__);
+//         fprintf(stderr," %4d | %s | %s, PAUSED FOR UI\n",__LINE__,__FILE__,__FUNCTION__);
         return false;
     }
 
-    fprintf(stderr," %4d | %s | %s, CAN PLAY\n",__LINE__,__FILE__,__FUNCTION__);
+//     fprintf(stderr," %4d | %s | %s, CAN PLAY\n",__LINE__,__FILE__,__FUNCTION__);
     return true;
 }
 

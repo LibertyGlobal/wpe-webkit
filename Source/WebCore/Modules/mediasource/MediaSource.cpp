@@ -52,6 +52,19 @@
 
 namespace WebCore {
 
+#ifdef LOG
+#undef LOG
+#endif
+
+#ifdef LOG_DISABLED
+#undef LOG_DISABLED
+#endif
+
+#define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
+#define LOG_DISABLED 0
+// #define LOG( x, s... )  ({ })
+// #define LOG_DISABLED 1
+
 #if !LOG_DISABLED
 static const char* toString(MediaSource::ReadyState readyState)
 {

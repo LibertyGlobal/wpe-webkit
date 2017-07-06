@@ -406,8 +406,6 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
     } else if (m_canFallBackToLastFinishedSeekPosition)
         result = m_seekTime;
 
-    fprintf(stderr," %4d | %s | %s playbackPosition( %lf )\n",__LINE__,__FILE__,__FUNCTION__,result);
-
 #if PLATFORM(BCM_NEXUS) || 1
     // implement getting pts time from broadcom decoder directly for seek functionality
     gint64 currentPts = -1;
@@ -423,7 +421,6 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
         result = m_seekTime;
 #endif
 
-    fprintf(stderr," %4d | %s | %s playbackPosition( %lf )\n",__LINE__,__FILE__,__FUNCTION__,result);
     m_cachedPosition = result;
     return result;
 }

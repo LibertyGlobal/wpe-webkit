@@ -72,8 +72,10 @@ static const double ExponentialMovingAverageCoefficient = 0.1;
 #undef LOG_DISABLED
 #endif
 
-#define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
+#define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
 #define LOG_DISABLED 0
+// #define LOG( x, s... )  ({ })
+// #define LOG_DISABLED 1
 
 struct SourceBuffer::TrackBuffer {
     MediaTime lastDecodeTimestamp;
@@ -110,7 +112,8 @@ SourceBuffer::SourceBuffer(Ref<SourceBufferPrivate>&& sourceBufferPrivate, Media
     : ActiveDOMObject(source->scriptExecutionContext())
     , m_private(WTFMove(sourceBufferPrivate))
     , m_source(source)
-    , m_asyncEventQueue(*this,true)
+    , m_asyncEventQueue(*this)
+//     , m_asyncEventQueue(*this,true)
     , m_appendBufferTimer(*this, &SourceBuffer::appendBufferTimerFired)
     , m_appendWindowStart(MediaTime::zeroTime())
     , m_appendWindowEnd(MediaTime::positiveInfiniteTime())
@@ -511,6 +514,7 @@ void SourceBuffer::scheduleEvent(const AtomicString& eventName)
 
 ExceptionOr<void> SourceBuffer::appendBufferInternal(const unsigned char* data, unsigned size)
 {
+    LOG(MediaSource, "SourceBuffer::appendBufferInternal(%p) - %u", this,size);
     // Section 3.2 appendBuffer()
     // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#widl-SourceBuffer-appendBuffer-void-ArrayBufferView-data
 
