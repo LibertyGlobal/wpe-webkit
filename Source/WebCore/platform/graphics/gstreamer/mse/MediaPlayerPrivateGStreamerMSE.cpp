@@ -722,7 +722,7 @@ void MediaPlayerPrivateGStreamerMSE::durationChanged()
     if (m_mediaTimeDuration != previousDuration && m_mediaTimeDuration.isValid() && previousDuration.isValid()) {
         m_player->durationChanged();
         m_playbackPipeline->notifyDurationChanged();
-//         m_mediaSource->durationChanged(m_mediaTimeDuration);
+        m_mediaSource->durationChanged(m_mediaTimeDuration);
     }
 }
 

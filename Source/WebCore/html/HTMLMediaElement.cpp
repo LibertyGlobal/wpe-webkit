@@ -192,10 +192,10 @@ static void clearFlags(unsigned& value, unsigned flags)
 #undef LOG_DISABLED
 #endif
 
-#define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
-#define LOG_DISABLED 0
-// #define LOG( x, s... )  ({ })
-// #define LOG_DISABLED 1
+// #define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
+// #define LOG_DISABLED 0
+#define LOG( x, s... )  ({ })
+#define LOG_DISABLED 1
 
 #if !LOG_DISABLED
 static String urlForLoggingMedia(const URL& url)
@@ -3879,6 +3879,7 @@ void HTMLMediaElement::startPlaybackProgressTimer()
 
 void HTMLMediaElement::playbackProgressTimerFired()
 {
+    LOG(Media, "HTMLMediaElement::%s(%p)", __FUNCTION__, this);
     ASSERT(m_player);
 
     if (m_fragmentEndTime.isValid() && currentMediaTime() >= m_fragmentEndTime && requestedPlaybackRate() > 0) {
@@ -3891,8 +3892,10 @@ void HTMLMediaElement::playbackProgressTimerFired()
     
     scheduleTimeupdateEvent(true);
 
-    if (!requestedPlaybackRate())
+    if (!requestedPlaybackRate()) {
+        LOG(Media, "HTMLMediaElement::%s(%p)", __FUNCTION__, this);
         return;
+    }
 
     if (!m_paused && hasMediaControls())
         mediaControls()->playbackProgressed();
@@ -3905,6 +3908,7 @@ void HTMLMediaElement::playbackProgressTimerFired()
     if (m_mediaSource && !m_player->seeking())
         m_mediaSource->monitorSourceBuffers();
 #endif
+    LOG(Media, "HTMLMediaElement::%s(%p)", __FUNCTION__, this);
 }
 
 void HTMLMediaElement::scheduleTimeupdateEvent(bool periodicEvent)
@@ -3912,6 +3916,7 @@ void HTMLMediaElement::scheduleTimeupdateEvent(bool periodicEvent)
     MonotonicTime now = MonotonicTime::now();
     Seconds timedelta = now - m_clockTimeAtLastUpdateEvent;
 
+    LOG(Media, "HTMLMediaElement::%s(%p), %d, %d", __FUNCTION__, this, periodicEvent, timedelta < maxTimeupdateEventFrequency );
     // throttle the periodic events
     if (periodicEvent && timedelta < maxTimeupdateEventFrequency)
         return;
@@ -3920,10 +3925,12 @@ void HTMLMediaElement::scheduleTimeupdateEvent(bool periodicEvent)
     // event at a given time so filter here
     MediaTime movieTime = currentMediaTime();
     if (movieTime != m_lastTimeUpdateEventMovieTime) {
+        LOG(Media, "HTMLMediaElement::%s(%p)", __FUNCTION__, this);
         scheduleEvent(eventNames().timeupdateEvent);
         m_clockTimeAtLastUpdateEvent = now;
         m_lastTimeUpdateEventMovieTime = movieTime;
     }
+    LOG(Media, "HTMLMediaElement::%s(%p)", __FUNCTION__, this);
 }
 
 bool HTMLMediaElement::canPlay() const

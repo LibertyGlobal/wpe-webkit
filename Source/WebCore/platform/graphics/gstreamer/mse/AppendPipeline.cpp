@@ -165,6 +165,7 @@ AppendPipeline::AppendPipeline(Ref<MediaSourceClientGStreamerMSE> mediaSourceCli
     gst_bin_add_many(GST_BIN(m_pipeline.get()), m_appsrc.get(), m_demux.get(), nullptr);
     gst_element_link(m_appsrc.get(), m_demux.get());
 
+    fprintf(stderr," %4d | %p | %s, gst_element_set_state( GST_STATE_READY )\n",__LINE__,this,__FUNCTION__);
     gst_element_set_state(m_pipeline.get(), GST_STATE_READY);
 };
 
@@ -193,6 +194,7 @@ AppendPipeline::~AppendPipeline()
         g_signal_handlers_disconnect_by_func(m_bus.get(), reinterpret_cast<gpointer>(appendPipelineNeedContextMessageCallback), this);
         gst_bus_disable_sync_message_emission(m_bus.get());
         gst_bus_remove_signal_watch(m_bus.get());
+        fprintf(stderr," %4d | %p | %s, gst_element_set_state( GST_STATE_NULL )\n",__LINE__,this,__FUNCTION__);
         gst_element_set_state(m_pipeline.get(), GST_STATE_NULL);
         m_pipeline = nullptr;
     }
@@ -279,8 +281,10 @@ void AppendPipeline::clearPlayerPrivate()
 
     // And now that no handleNewSample operations will remain stalled waiting
     // for the main thread, stop the pipeline.
-    if (m_pipeline)
+    if (m_pipeline) {
+        fprintf(stderr," %4d | %p | %s, gst_element_set_state( GST_STATE_NULL )\n",__LINE__,this,__FUNCTION__);
         gst_element_set_state(m_pipeline.get(), GST_STATE_NULL);
+    }
 }
 
 void AppendPipeline::handleNeedContextSyncMessage(GstMessage* message)
@@ -439,14 +443,14 @@ void AppendPipeline::setAppendState(AppendState newAppendState)
     bool mustCheckEndOfAppend = false;
 
 //     if( oldAppendState != newAppendState )
-//         fprintf(stderr," %4d | %s | %s, %s => %s\n",__LINE__,__FILE__,__FUNCTION__, dumpAppendState(oldAppendState), dumpAppendState(newAppendState));
+//         fprintf(stderr," %4d | %p | %s, %s => %s\n",__LINE__,this,__FUNCTION__, dumpAppendState(oldAppendState), dumpAppendState(newAppendState));
 
     switch (oldAppendState) {
     case AppendState::NotStarted:
         switch (newAppendState) {
         case AppendState::Ongoing:
             ok = true;
-            gst_element_set_state(m_pipeline.get(), GST_STATE_PLAYING);
+                gst_element_set_state(m_pipeline.get(), GST_STATE_PLAYING);
             break;
         case AppendState::NotStarted:
             ok = true;
@@ -682,6 +686,7 @@ void AppendPipeline::appsinkCapsChanged()
         if (m_playerPrivate && previousCapsWereNull)
             m_playerPrivate->trackDetected(this, m_oldTrack, m_track);
         didReceiveInitializationSegment();
+        fprintf(stderr," %4d | %p | %s, gst_element_set_state( GST_STATE_PLAYING )\n",__LINE__,this,__FUNCTION__);
         gst_element_set_state(m_pipeline.get(), GST_STATE_PLAYING);
     }
 }
@@ -1030,6 +1035,7 @@ void AppendPipeline::connectDemuxerSrcPadToAppsinkFromAnyThread(GstPad* demuxerS
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)
         }
 #endif
+        fprintf(stderr," %4d | %p | %s, gst_element_set_state( GST_STATE_PAUSED )\n",__LINE__,this,__FUNCTION__);
         gst_element_set_state(m_pipeline.get(), GST_STATE_PAUSED);
     }
 }
@@ -1121,6 +1127,7 @@ void AppendPipeline::disconnectDemuxerSrcPadFromAppsinkFromAnyThread(GstPad* dem
     if (m_decryptor) {
         gst_element_unlink(m_decryptor.get(), m_appsink.get());
         gst_element_unlink(m_demux.get(), m_decryptor.get());
+        fprintf(stderr," %4d | %p | %s, gst_element_set_state( GST_STATE_NULL )\n",__LINE__,this,__FUNCTION__);
         gst_element_set_state(m_decryptor.get(), GST_STATE_NULL);
         gst_bin_remove(GST_BIN(m_pipeline.get()), m_decryptor.get());
     } else

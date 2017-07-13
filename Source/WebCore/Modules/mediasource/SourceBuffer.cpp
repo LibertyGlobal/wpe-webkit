@@ -72,10 +72,10 @@ static const double ExponentialMovingAverageCoefficient = 0.1;
 #undef LOG_DISABLED
 #endif
 
-#define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
-#define LOG_DISABLED 0
-// #define LOG( x, s... )  ({ })
-// #define LOG_DISABLED 1
+// #define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
+// #define LOG_DISABLED 0
+#define LOG( x, s... )  ({ })
+#define LOG_DISABLED 1
 
 struct SourceBuffer::TrackBuffer {
     MediaTime lastDecodeTimestamp;
@@ -1501,6 +1501,8 @@ void SourceBuffer::sourceBufferPrivateDidReceiveSample(MediaSample& sample)
         }
         TrackBuffer& trackBuffer = it->value;
 
+//         fprintf(stderr,"NEW SAMPLE[%d]: %lf, %lf ! %lf\n",m_mode,presentationTimestamp.toDouble(),frameDuration.toDouble(),trackBuffer.highestPresentationTimestamp.toDouble());
+
         // 1.6 ↳ If last decode timestamp for track buffer is set and decode timestamp is less than last
         // decode timestamp:
         // OR
@@ -1526,7 +1528,7 @@ void SourceBuffer::sourceBufferPrivateDidReceiveSample(MediaSample& sample)
                 // 1.6.3 Unset the last frame duration on all track buffers.
                 trackBuffer.lastFrameDuration = MediaTime::invalidTime();
                 // 1.6.4 Unset the highest presentation timestamp on all track buffers.
-                trackBuffer.highestPresentationTimestamp = MediaTime::invalidTime();
+//                 trackBuffer.highestPresentationTimestamp = MediaTime::invalidTime();
                 // 1.6.5 Set the need random access point flag on all track buffers to true.
                 trackBuffer.needRandomAccessFlag = true;
             }
@@ -1616,8 +1618,10 @@ void SourceBuffer::sourceBufferPrivateDidReceiveSample(MediaSample& sample)
 
                     // 1.14.2.3 If the presentation timestamp is less than the remove window timestamp,
                     // then remove overlapped frame and any coded frames that depend on it from track buffer.
-                    if (presentationTimestamp < removeWindowTimestamp)
+                    if (presentationTimestamp < removeWindowTimestamp) {
+//                         fprintf(stderr," %4d | REMOVE[%d]: %lf %lf\n",__LINE__,m_mode,presentationTimestamp.toDouble(),removeWindowTimestamp.toDouble());
                         erasedSamples.addSample(*iter->second);
+                    }
                 }
 
                 // If track buffer contains timed text coded frames:
@@ -1632,8 +1636,10 @@ void SourceBuffer::sourceBufferPrivateDidReceiveSample(MediaSample& sample)
             // Remove all coded frames from track buffer that have a presentation timestamp greater than or
             // equal to presentation timestamp and less than frame end timestamp.
             auto iter_pair = trackBuffer.samples.presentationOrder().findSamplesBetweenPresentationTimes(presentationTimestamp, frameEndTimestamp);
-            if (iter_pair.first != trackBuffer.samples.presentationOrder().end())
+            if (iter_pair.first != trackBuffer.samples.presentationOrder().end()) {
+//                 fprintf(stderr," %4d | REMOVE[%d]: %lf %lf\n",__LINE__,m_mode,presentationTimestamp.toDouble(),frameEndTimestamp.toDouble());
                 erasedSamples.addRange(iter_pair.first, iter_pair.second);
+            }
         }
 
         // If highest presentation timestamp for track buffer is set and less than or equal to presentation timestamp
@@ -1656,8 +1662,10 @@ void SourceBuffer::sourceBufferPrivateDidReceiveSample(MediaSample& sample)
                 else
                     range = trackBuffer.samples.presentationOrder().findSamplesWithinPresentationRange(trackBuffer.highestPresentationTimestamp, frameEndTimestamp);
 
-                if (range.first != trackBuffer.samples.presentationOrder().end())
+                if (range.first != trackBuffer.samples.presentationOrder().end()) {
+//                     fprintf(stderr," %4d | REMOVE[%d]: %lf %lf\n",__LINE__,m_mode,trackBuffer.highestPresentationTimestamp.toDouble(),frameEndTimestamp.toDouble());
                     erasedSamples.addRange(range.first, range.second);
+                }
             } while(false);
         }
 
@@ -1701,7 +1709,8 @@ void SourceBuffer::sourceBufferPrivateDidReceiveSample(MediaSample& sample)
         // Add the coded frame with the presentation timestamp, decode timestamp, and frame duration to the track buffer.
         trackBuffer.samples.addSample(sample);
 
-        if (trackBuffer.lastEnqueuedDecodeEndTime.isInvalid() || decodeTimestamp >= trackBuffer.lastEnqueuedDecodeEndTime) {
+//         if (trackBuffer.lastEnqueuedDecodeEndTime.isInvalid() || decodeTimestamp >= trackBuffer.lastEnqueuedDecodeEndTime)
+        {
             DecodeOrderSampleMap::KeyType decodeKey(decodeTimestamp, presentationTimestamp);
             trackBuffer.decodeQueue.insert(DecodeOrderSampleMap::MapType::value_type(decodeKey, &sample));
         }
