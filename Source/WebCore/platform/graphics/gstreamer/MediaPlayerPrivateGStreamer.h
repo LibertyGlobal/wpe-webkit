@@ -178,7 +178,8 @@ private:
 protected:
     bool m_buffering;
     int m_bufferingPercentage;
-    mutable float m_cachedPosition;
+    mutable double m_cachedPosition;
+    mutable double m_lastPosition;
     bool m_canFallBackToLastFinishedSeekPosition;
     bool m_changingRate;
     bool m_downloadFinished;

@@ -148,6 +148,7 @@ MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer(MediaPlayer* player)
     , m_buffering(false)
     , m_bufferingPercentage(0)
     , m_cachedPosition(-1)
+    , m_lastPosition(-1)
     , m_canFallBackToLastFinishedSeekPosition(false)
     , m_changingRate(false)
     , m_downloadFinished(false)
@@ -357,6 +358,16 @@ static GstElement* findVideoDecoder(GstElement *element)
 }
 #endif
 
+static inline double normalizePosition( double newPosition, double &lastPosition, double rate ) {
+
+    if( ( newPosition != lastPosition ) && \
+        ( ( ( rate > 0 ) && ( lastPosition < newPosition ) ) ||
+          ( ( rate < 0 ) && ( lastPosition > newPosition ) ) ) )
+    {
+        lastPosition = newPosition;
+    }
+    return lastPosition;
+}
 
 double MediaPlayerPrivateGStreamer::playbackPosition() const
 {
@@ -376,8 +387,8 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
     }
 
     double now = WTF::currentTime();
-    if (m_lastQuery > -1 && ((now - m_lastQuery) < 0.25) && (m_cachedPosition > -1))
-        return m_cachedPosition;
+    if (m_lastQuery > -1 && ((now - m_lastQuery) < 0.20) && (m_cachedPosition > -1))
+        return normalizePosition( m_cachedPosition + (now - m_lastQuery) * m_playbackRate, m_lastPosition, m_playbackRate );
 
     m_lastQuery = now;
 
@@ -422,7 +433,7 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
 #endif
 
     m_cachedPosition = result;
-    return result;
+    return normalizePosition( result, m_lastPosition, m_playbackRate );
 }
 
 GstSeekFlags MediaPlayerPrivateGStreamer::hardwareDependantSeekFlags()
@@ -947,6 +958,9 @@ void MediaPlayerPrivateGStreamer::setRate(float rate)
 {
     // Higher rate causes crash.
     rate = clampTo(rate, -20.0, 20.0);
+
+    if( rate > 0 && rate < 1.0 )
+        rate = 1.0;
 
     // Avoid useless playback rate update.
     if (m_playbackRate == rate) {
@@ -1641,7 +1655,7 @@ void MediaPlayerPrivateGStreamer::asyncStateChangeDone()
         else {
             GST_DEBUG("[Seek] seeked to %f", m_seekTime);
             m_seeking = false;
-            m_cachedPosition = -1;
+            m_lastPosition = m_cachedPosition = -1;
             if (m_timeOfOverlappingSeek != m_seekTime && m_timeOfOverlappingSeek != -1) {
                 seek(m_timeOfOverlappingSeek);
                 m_timeOfOverlappingSeek = -1;
@@ -1816,7 +1830,7 @@ void MediaPlayerPrivateGStreamer::updateStates()
             m_seekIsPending = false;
             m_seeking = doSeek(toGstClockTime(m_seekTime), m_player->rate(), static_cast<GstSeekFlags>(GST_SEEK_FLAG_FLUSH | hardwareDependantSeekFlags()));
             if (!m_seeking) {
-                m_cachedPosition = -1;
+                m_lastPosition = m_cachedPosition = -1;
                 GST_DEBUG("[Seek] seeking to %f failed", m_seekTime);
             }
         }

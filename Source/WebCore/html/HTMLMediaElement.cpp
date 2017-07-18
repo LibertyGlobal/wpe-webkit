@@ -432,6 +432,7 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tagName, Document& docum
     , m_pendingActionTimer(*this, &HTMLMediaElement::pendingActionTimerFired)
     , m_progressEventTimer(*this, &HTMLMediaElement::progressEventTimerFired)
     , m_playbackProgressTimer(*this, &HTMLMediaElement::playbackProgressTimerFired)
+    , m_playbackProgressStarter( *this, &HTMLMediaElement::startPlaybackProgressTimer)
     , m_scanTimer(*this, &HTMLMediaElement::scanTimerFired)
     , m_playbackControlsManagerBehaviorRestrictionsTimer(*this, &HTMLMediaElement::playbackControlsManagerBehaviorRestrictionsTimerFired)
     , m_seekToPlaybackPositionEndedTimer(*this, &HTMLMediaElement::seekToPlaybackPositionEndedTimerFired)
@@ -2433,7 +2434,7 @@ void HTMLMediaElement::setReadyState(MediaPlayer::ReadyState state)
         if (wasPotentiallyPlaying && m_readyState < HAVE_FUTURE_DATA) {
             // 4.8.10.8
             invalidateCachedTime();
-            scheduleTimeupdateEvent(false);
+//             scheduleTimeupdateEvent(false);
             scheduleEvent(eventNames().waitingEvent);
         }
     }
@@ -3866,7 +3867,8 @@ void HTMLMediaElement::scanTimerFired()
 
 // The spec says to fire periodic timeupdate events (those sent while playing) every
 // "15 to 250ms", we choose the slowest frequency
-static const Seconds maxTimeupdateEventFrequency { 250_ms };
+static const Seconds maxTimeupdateEventFrequency { 200_ms };
+static const Seconds maxTimeupdateEventFrequencyThrottle { 150_ms };
 
 void HTMLMediaElement::startPlaybackProgressTimer()
 {
@@ -3916,9 +3918,9 @@ void HTMLMediaElement::scheduleTimeupdateEvent(bool periodicEvent)
     MonotonicTime now = MonotonicTime::now();
     Seconds timedelta = now - m_clockTimeAtLastUpdateEvent;
 
-    LOG(Media, "HTMLMediaElement::%s(%p), %d, %d", __FUNCTION__, this, periodicEvent, timedelta < maxTimeupdateEventFrequency );
+    LOG(Media, "HTMLMediaElement::%s(%p), %d, %d", __FUNCTION__, this, periodicEvent, timedelta < maxTimeupdateEventFrequencyThrottle );
     // throttle the periodic events
-    if (periodicEvent && timedelta < maxTimeupdateEventFrequency)
+    if (periodicEvent && timedelta < maxTimeupdateEventFrequencyThrottle)
         return;
 
     // Some media engines make multiple "time changed" callbacks at the same time, but we only want one
@@ -5401,7 +5403,9 @@ void HTMLMediaElement::updatePlayState(UpdateState updateState)
         if (hasMediaControls())
             mediaControls()->playbackStarted();
 
-        startPlaybackProgressTimer();
+        m_playbackProgressStarter.stop();
+        m_playbackProgressStarter.startOneShot(250_ms);
+//                 startPlaybackProgressTimer();
         setPlaying(true);
     } else {
         scheduleUpdatePlaybackControlsManager();
@@ -5410,6 +5414,7 @@ void HTMLMediaElement::updatePlayState(UpdateState updateState)
             m_player->pause();
         refreshCachedTime();
 
+        m_playbackProgressStarter.stop();
         m_playbackProgressTimer.stop();
         setPlaying(false);
         MediaTime time = currentMediaTime();

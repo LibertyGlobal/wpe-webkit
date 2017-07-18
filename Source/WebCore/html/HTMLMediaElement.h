@@ -892,6 +892,7 @@ private:
     Timer m_pendingActionTimer;
     Timer m_progressEventTimer;
     Timer m_playbackProgressTimer;
+    Timer m_playbackProgressStarter;
     Timer m_scanTimer;
     Timer m_playbackControlsManagerBehaviorRestrictionsTimer;
     Timer m_seekToPlaybackPositionEndedTimer;
