@@ -386,6 +386,9 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
         return 0;
     }
 
+    if( m_readyState < MediaPlayer::HaveCurrentData && m_cachedPosition < 0 )
+        return 0;
+
     double now = WTF::currentTime();
     if (m_lastQuery > -1 && ((now - m_lastQuery) < 0.20) && (m_cachedPosition > -1))
         return normalizePosition( m_cachedPosition + (now - m_lastQuery) * m_playbackRate, m_lastPosition, m_playbackRate );
