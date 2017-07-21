@@ -428,12 +428,12 @@ void WebChromeClient::closeWindowSoon()
     // a close execute synchronously as part of window.close, but other parts
     // later on.
 
-    m_page.corePage()->setGroupName(String());
+//     m_page.corePage()->setGroupName(String());
 
-    if (WebFrame* frame = m_page.mainWebFrame()) {
-        if (Frame* coreFrame = frame->coreFrame())
-            coreFrame->loader().stopForUserCancel();
-    }
+//     if (WebFrame* frame = m_page.mainWebFrame()) {
+//         if (Frame* coreFrame = frame->coreFrame())
+//             coreFrame->loader().stopForUserCancel();
+//     }
 
     m_page.sendClose();
 }
