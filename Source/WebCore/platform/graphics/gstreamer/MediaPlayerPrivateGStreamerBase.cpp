@@ -577,7 +577,11 @@ bool MediaPlayerPrivateGStreamerBase::handleSyncMessage(GstMessage* message)
             // ZH_TODO: Verify Widevine path
             // FIXME: ClearKey BestKey
             LockHolder lock(m_protectionMutex);
+#if USE(PLAYREADY)
             m_lastGenerateKeyRequestKeySystemUuid = AtomicString(PLAYREADY_PROTECTION_SYSTEM_UUID);
+#else
+            m_lastGenerateKeyRequestKeySystemUuid = AtomicString(CLEAR_KEY_PROTECTION_SYSTEM_UUID);
+#endif
             m_protectionCondition.notifyOne();
 #else
             ASSERT_NOT_REACHED();
