@@ -283,6 +283,7 @@ MediaPlayerPrivateGStreamerBase::MediaPlayerPrivateGStreamerBase(MediaPlayer* pl
     , m_initDataProcessed(false)
 #endif
     , m_weakPtrFactory(this)
+    , m_pendingSizeSet( false )
 {
     g_mutex_init(&m_sampleMutex);
 #if USE(COORDINATED_GRAPHICS_THREADED)
@@ -1073,8 +1074,12 @@ void MediaPlayerPrivateGStreamerBase::clearCurrentBuffer()
 
 void MediaPlayerPrivateGStreamerBase::setSize(const IntSize& size)
 {
-    if (size == m_size)
+    if (size == m_size) {
+        if( m_pendingSizeSet ) {
+            updateVideoRectangle();
+        }
         return;
+    }
 
     GST_INFO("Setting size to %dx%d", size.width(), size.height());
     m_size = size;
@@ -1086,8 +1091,12 @@ void MediaPlayerPrivateGStreamerBase::setSize(const IntSize& size)
 
 void MediaPlayerPrivateGStreamerBase::setPosition(const IntPoint& position)
 {
-    if (position == m_position)
+    if (position == m_position) {
+        if( m_pendingSizeSet ) {
+            updateVideoRectangle();
+        }
         return;
+    }
 
     m_position = position;
 
@@ -1099,14 +1108,19 @@ void MediaPlayerPrivateGStreamerBase::setPosition(const IntPoint& position)
 #if USE(HOLE_PUNCH_GSTREAMER)
 void MediaPlayerPrivateGStreamerBase::updateVideoRectangle()
 {
-    if (!m_pipeline)
+    if (!m_pipeline) {
+        m_pendingSizeSet = true;
         return;
+    }
 
     GRefPtr<GstElement> sinkElement;
     g_object_get(m_pipeline.get(), "video-sink", &sinkElement.outPtr(), nullptr);
-    if(!sinkElement)
+    if(!sinkElement) {
+        m_pendingSizeSet = true;
         return;
+    }
 
+    m_pendingSizeSet = false;
     GST_INFO("Setting video sink size and position to x:%d y:%d, width=%d, height=%d", m_position.x(), m_position.y(), m_size.width(), m_size.height());
 
     GUniquePtr<gchar> rectString(g_strdup_printf("%d,%d,%d,%d", m_position.x(), m_position.y(), m_size.width(),m_size.height()));

@@ -340,6 +340,8 @@ private:
 #endif
 
     WeakPtrFactory<MediaPlayerPrivateGStreamerBase> m_weakPtrFactory;
+
+    bool m_pendingSizeSet;
 };
 
 }
