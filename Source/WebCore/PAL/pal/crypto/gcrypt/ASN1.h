@@ -48,7 +48,8 @@ static TLV parseTLV(const Vector<uint8_t>& buffer, const size_t offset)
     if (offset + 1 + lengthBytes + length > buffer.size())
         return { };
 
-    return { 1 + lengthBytes + length, offset, tag, length, 1 + lengthBytes };
+    //return TLV( 1 + lengthBytes + length, offset, tag, length, 1 + lengthBytes );
+    return { bufferSize: 1 + lengthBytes + length, bufferOffset: bufferOffset, tag: tag, length: length, offset: 1 + lengthBytes };
 }
 
 struct Node;
