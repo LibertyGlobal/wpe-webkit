@@ -266,6 +266,11 @@ void Performance::queueEntry(PerformanceEntry& entry)
     });
 }
 
+Ref<MemoryInfo> Performance::memory() const
+{
+    return MemoryInfo::create();
+}
+
 } // namespace WebCore
 
 #endif // ENABLE(WEB_TIMING)

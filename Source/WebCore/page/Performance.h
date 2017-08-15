@@ -39,6 +39,7 @@
 #include "ExceptionOr.h"
 #include "GenericTaskQueue.h"
 #include <wtf/ListHashSet.h>
+#include "MemoryInfo.h"
 
 namespace WebCore {
 
@@ -62,6 +63,7 @@ public:
 
     PerformanceNavigation* navigation();
     PerformanceTiming* timing();
+    Ref<MemoryInfo> memory() const;
 
     Vector<RefPtr<PerformanceEntry>> getEntries() const;
     Vector<RefPtr<PerformanceEntry>> getEntriesByType(const String& entryType) const;
