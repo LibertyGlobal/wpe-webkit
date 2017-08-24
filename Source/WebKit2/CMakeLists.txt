@@ -852,6 +852,10 @@ if (ENABLE_PLUGIN_PROCESS AND NOT "${PORT}" STREQUAL "Mac")
     endif ()
 endif ()
 
+if (ENABLE_INSPECTOR_SERVER)
+	add_definitions(-DENABLE_INSPECTOR_SERVER=1)
+endif ()
+
 if (ENABLE_DATABASE_PROCESS AND NOT "${PORT}" STREQUAL "Mac")
     add_definitions(-DENABLE_DATABASE_PROCESS=1)
     add_executable(DatabaseProcess ${DatabaseProcess_SOURCES})
