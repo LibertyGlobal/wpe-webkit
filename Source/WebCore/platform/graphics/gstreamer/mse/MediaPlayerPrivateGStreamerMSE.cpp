@@ -760,7 +760,7 @@ void MediaPlayerPrivateGStreamerMSE::trackDetected(RefPtr<AppendPipeline> append
 
 bool MediaPlayerPrivateGStreamerMSE::supportsCodecs(const String& codecs)
 {
-    static Vector<const char*> supportedCodecs = { "avc*", "mp4a*", "mpeg", "x-h264", "vp9", "x-vp9" };
+    static Vector<const char*> supportedCodecs = { "avc*", "mp4a*", "mpeg", "x-h264", "vp9", "x-vp9", "opus", "x-opus" };
     Vector<String> codecEntries;
     codecs.split(',', false, codecEntries);
 

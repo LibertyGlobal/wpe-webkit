@@ -158,6 +158,7 @@ private:
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)
     GRefPtr<GstBuffer> m_pendingKey;
 #endif
+    bool m_webm;
 };
 
 } // namespace WebCore.

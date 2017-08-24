@@ -111,6 +111,7 @@ AppendPipeline::AppendPipeline(Ref<MediaSourceClientGStreamerMSE> mediaSourceCli
     , m_appendState(AppendState::NotStarted)
     , m_abortPending(false)
     , m_streamType(Unknown)
+    , m_webm( webm )
 {
     ASSERT(WTF::isMainThread());
 
@@ -754,7 +755,8 @@ void AppendPipeline::appsinkNewSample(GstSample* sample)
         }
 
         // Add a gap sample if a gap is detected before the first sample.
-        if (mediaSample->decodeTime() == MediaTime::zeroTime()
+        if (!m_webm
+            && mediaSample->decodeTime() == MediaTime::zeroTime()
             && mediaSample->presentationTime() > MediaTime::zeroTime()
             && mediaSample->presentationTime() <= MediaTime::createWithDouble(0.1)) {
             GST_DEBUG("Adding gap offset");
