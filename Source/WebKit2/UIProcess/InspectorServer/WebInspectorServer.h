@@ -61,6 +61,8 @@ private:
 
     bool platformResourceForPath(const String& path, Vector<char>& data, String& contentType);
 
+    void buildPageList(Vector<char>& data, String& contentType);
+
     void closeConnection(WebInspectorProxy*, WebSocketServerConnection*);
 
     unsigned m_nextAvailablePageId;
