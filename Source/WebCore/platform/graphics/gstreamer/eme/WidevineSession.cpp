@@ -42,13 +42,13 @@ WidevineSession::~WidevineSession()
 {
 }
 
-RefPtr<Uint8Array> WidevineSession::WidevineGenerateKeyRequest(Uint8Array* initData, const String& customData, String& destinationURL, unsigned short& errorCode, uint32_t& systemCode)
+RefPtr<Uint8Array> WidevineSession::widevineGenerateKeyRequest(Uint8Array* initData, const String& customData, String& destinationURL, unsigned short& errorCode, uint32_t& systemCode)
 {
     RefPtr<Uint8Array> result;
     return result;
 }
 
-bool WidevineSession::WidevineProcessKey(Uint8Array* key, RefPtr<Uint8Array>& nextMessage, unsigned short& errorCode, uint32_t& systemCode)
+bool WidevineSession::widevineProcessKey(Uint8Array* key, RefPtr<Uint8Array>& nextMessage, unsigned short& errorCode, uint32_t& systemCode)
 {
     return false;
 }

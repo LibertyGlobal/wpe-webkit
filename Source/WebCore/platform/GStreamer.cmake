@@ -146,6 +146,7 @@ if (ENABLE_LEGACY_ENCRYPTED_MEDIA_V1 OR ENABLE_LEGACY_ENCRYPTED_MEDIA OR ENABLE_
 
     list(APPEND WebCore_SOURCES
         platform/graphics/gstreamer/eme/CDMPRSessionGStreamer.cpp
+        platform/graphics/gstreamer/eme/CDMWVSessionGStreamer.cpp
         platform/graphics/gstreamer/eme/WebKitPlayReadyDecryptorGStreamer.cpp
         platform/graphics/gstreamer/eme/WebKitWidevineDecryptorGStreamer.cpp
     )

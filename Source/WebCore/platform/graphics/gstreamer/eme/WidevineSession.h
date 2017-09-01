@@ -33,8 +33,8 @@ public:
     WidevineSession(const Vector<uint8_t> &initData, const void* pipeline);
     ~WidevineSession();
 
-    RefPtr<Uint8Array> WidevineGenerateKeyRequest(Uint8Array* initData, const String& customData, String& destinationURL, unsigned short& errorCode, uint32_t& systemCode);
-    bool WidevineProcessKey(Uint8Array* key, RefPtr<Uint8Array>& nextMessage, unsigned short& errorCode, uint32_t& systemCode);
+    RefPtr<Uint8Array> widevineGenerateKeyRequest(Uint8Array* initData, const String& customData, String& destinationURL, unsigned short& errorCode, uint32_t& systemCode);
+    bool widevineProcessKey(Uint8Array* key, RefPtr<Uint8Array>& nextMessage, unsigned short& errorCode, uint32_t& systemCode);
 
     const RefPtr<ArrayBuffer>& key() const { return m_key; }
     bool keyRequested() const { return m_eKeyState == KEY_PENDING; }
