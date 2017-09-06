@@ -90,6 +90,8 @@ public:
     void reportAppsrcAtLeastABufferLeft();
     void reportAppsrcNeedDataReceived();
 
+    void setPendingCDMSession( void* );
+
 private:
     void resetPipeline();
     void checkEndOfAppend();
@@ -159,6 +161,7 @@ private:
     GRefPtr<GstBuffer> m_pendingKey;
 #endif
     bool m_webm;
+    void *m_pendingCDMSession;
 };
 
 } // namespace WebCore.

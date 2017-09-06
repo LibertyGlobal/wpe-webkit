@@ -54,9 +54,11 @@
 
 #if USE(PLAYREADY)
 #include "PlayreadySession.h"
+#include "WebKitPlayReadyDecryptorGStreamer.h"
 #endif
 #if USE(WIDEVINE)
 #include "WidevineSession.h"
+#include "WebKitWidevineDecryptorGStreamer.h"
 #endif
 
 #if ENABLE(ENCRYPTED_MEDIA)
@@ -407,6 +409,7 @@ void MediaPlayerPrivateGStreamerMSE::maybeFinishSeek()
     webKitMediaSrcSetReadyForSamples(WEBKIT_MEDIA_SRC(m_source.get()), true);
     m_seeking = false;
     m_cachedPosition = -1;
+    m_lastPosition = -1;
     // The pipeline can still have a pending state. In this case a position query will fail.
     // Right now we can use m_seekTime as a fallback.
     m_canFallBackToLastFinishedSeekPosition = true;
@@ -852,23 +855,19 @@ void MediaPlayerPrivateGStreamerMSE::emitPlayReadySession(PlayreadySession* sess
 #if ENABLE(ENCRYPTED_MEDIA)
 void MediaPlayerPrivateGStreamerMSE::attemptToDecryptWithInstance(const CDMInstance& baseInstance)
 {
-//     char buf[ 32 ];
-//     int i = 0;
-//     sprintf(buf,"pipeline%02d",i++);
-//     gst_debug_bin_to_dot_file(GST_BIN(m_pipeline.get()), GST_DEBUG_GRAPH_SHOW_ALL, buf);
 #if USE(PLAYREADY)
     if( baseInstance.implementationType() == CDMInstance::ImplementationType::PlayReady )
     {
+        receivedGenerateKeyRequest(PLAYREADY_PROTECTION_SYSTEM_ID);
         auto& instancepr = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
         auto sessionpr = &(instancepr.prSession());
 
         if (sessionpr->ready())
             for (auto it : m_appendPipelinesMap)
             {
-//                 sprintf(buf,"pipeline%02d",i++);
-//                 gst_debug_bin_to_dot_file(GST_BIN(it.value->pipeline()), GST_DEBUG_GRAPH_SHOW_ALL, buf);
-                gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-                                                                                  gst_structure_new("playready-session", "session", G_TYPE_POINTER, sessionpr, nullptr)));
+                it.value->setPendingCDMSession( sessionpr );
+//                 gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
+//                                                                                   gst_structure_new("playready-session", "session", G_TYPE_POINTER, sessionpr, nullptr)));
                 it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
             }
     }
@@ -876,16 +875,16 @@ void MediaPlayerPrivateGStreamerMSE::attemptToDecryptWithInstance(const CDMInsta
 #if USE(WIDEVINE)
     if( baseInstance.implementationType() == CDMInstance::ImplementationType::Widevine )
     {
+        receivedGenerateKeyRequest(WIDEVINE_PROTECTION_SYSTEM_ID);
         auto& instancewv = reinterpret_cast<const CDMInstanceWidevine&>(baseInstance);
         auto sessionwv = &(instancewv.wvSession());
 
         if (sessionwv->ready())
             for (auto it : m_appendPipelinesMap)
             {
-//                 sprintf(buf,"pipeline%02d",i++);
-//                 gst_debug_bin_to_dot_file(GST_BIN(it.value->pipeline()), GST_DEBUG_GRAPH_SHOW_ALL, buf);
-                gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-                                                                                  gst_structure_new("widevine-session", "session", G_TYPE_POINTER, sessionwv, nullptr)));
+                it.value->setPendingCDMSession( sessionwv );
+//                 gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
+//                                                                                   gst_structure_new("widevine-session", "session", G_TYPE_POINTER, sessionwv, nullptr)));
                 it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
             }
     }

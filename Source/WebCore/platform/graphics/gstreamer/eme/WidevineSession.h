@@ -7,11 +7,12 @@
 #include <runtime/Uint8Array.h>
 #include <wtf/Forward.h>
 #include <wtf/text/WTFString.h>
+#include "cdm/cdm.h"
 
 namespace WebCore
 {
 
-class WidevineSession
+class WidevineSession : public widevine::Cdm::IEventListener
 {
 
 private:
@@ -47,16 +48,23 @@ public:
     const String& sessionId() { return m_sessionId; }
     bool hasPipeline(const void* pipeline) { return m_pipeline == pipeline; }
 
+    virtual void onMessageUrl(const std::string& session_id, const std::string& server_url);
+    virtual void onMessage(const std::string& session_id, widevine::Cdm::MessageType message_type, const std::string& message);
+    virtual void onKeyStatusesChange(const std::string& session_id);
+    virtual void onRemoveComplete(const std::string& session_id);
+
 protected:
     RefPtr<ArrayBuffer> m_key;
 
-private:
     KeyState m_eKeyState;
     bool m_fCommit;
 
     String m_sessionId;
     Vector<uint8_t> m_initData;
     const void* m_pipeline;
+
+    RefPtr<Uint8Array> *m_result;
+    widevine::Cdm::KeyStatusMap m_keyMap;
 };
 
 }

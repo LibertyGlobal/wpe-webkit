@@ -112,6 +112,7 @@ AppendPipeline::AppendPipeline(Ref<MediaSourceClientGStreamerMSE> mediaSourceCli
     , m_abortPending(false)
     , m_streamType(Unknown)
     , m_webm( webm )
+    , m_pendingCDMSession( nullptr )
 {
     ASSERT(WTF::isMainThread());
 
@@ -666,6 +667,11 @@ void AppendPipeline::parseDemuxerSrcPadCaps(GstCaps* demuxerSrcPadCaps)
     }
 }
 
+void AppendPipeline::setPendingCDMSession( void *pendingCDMSession )
+{
+    m_pendingCDMSession = pendingCDMSession;
+}
+
 void AppendPipeline::appsinkCapsChanged()
 {
     ASSERT(WTF::isMainThread());
@@ -689,6 +695,11 @@ void AppendPipeline::appsinkCapsChanged()
         didReceiveInitializationSegment();
         fprintf(stderr," %4d | %p | %s, gst_element_set_state( GST_STATE_PLAYING )\n",__LINE__,this,__FUNCTION__);
         gst_element_set_state(m_pipeline.get(), GST_STATE_PLAYING);
+        if( m_pendingCDMSession ) {
+            gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
+                                                                          gst_structure_new("cdm-session", "session", G_TYPE_POINTER, m_pendingCDMSession, nullptr)));
+            m_pendingCDMSession = nullptr;
+        }
     }
 }
 

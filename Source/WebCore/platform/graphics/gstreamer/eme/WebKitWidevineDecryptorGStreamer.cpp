@@ -85,7 +85,7 @@ static gboolean webKitMediaWidevineDecryptorHandleKeyResponse(WebKitMediaCommonE
     WebKitMediaWidevineDecryptPrivate* priv = WEBKIT_MEDIA_WIDEVINE_DECRYPT_GET_PRIVATE(WEBKIT_MEDIA_WIDEVINE_DECRYPT(self));
 
     const GstStructure* structure = gst_event_get_structure(event);
-    const char* label = "widevine-session";
+    const char* label = "cdm-session";
 
     if (gst_structure_has_name(structure, "widevine-session"))
         g_print("XXXXX Found widevine-session\n");

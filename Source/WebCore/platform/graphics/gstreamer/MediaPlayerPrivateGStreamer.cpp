@@ -373,12 +373,12 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
 {
 
     if (m_isEndReached) {
-        // Position queries on a null pipeline return 0. If we're at
-        // the end of the stream the pipeline is null but we want to
-        // report either the seek time or the duration because this is
-        // what the Media element spec expects us to do.
+    // Position queries on a null pipeline return 0. If we're at
+    // the end of the stream the pipeline is null but we want to
+    // report either the seek time or the duration because this is
+    // what the Media element spec expects us to do.
         if (m_seeking)
-            return m_seekTime;
+        return m_seekTime;
 
         MediaTime mediaDuration = durationMediaTime();
         if (mediaDuration)
@@ -395,43 +395,47 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
 
     m_lastQuery = now;
 
-    // Position is only available if no async state change is going on and the state is either paused or playing.
-    gint64 position = GST_CLOCK_TIME_NONE;
-    GstElement* videoDec = nullptr;
-    GstQuery* query = gst_query_new_position(GST_FORMAT_TIME);
-#if USE(FUSION_SINK)
-    g_object_get(m_pipeline.get(), "video-sink", &videoDec, nullptr);
-    if (!GST_IS_ELEMENT(videoDec))
-        return 0.0f;
-#else
-    videoDec = m_pipeline.get();
-#endif
-    if (gst_element_query(videoDec, query))
-        gst_query_parse_position(query, 0, &position);
-    gst_query_unref(query);
-
-    GST_DEBUG("Position %" GST_TIME_FORMAT, GST_TIME_ARGS(position));
-
     double result = 0.0f;
-    if (static_cast<GstClockTime>(position) != GST_CLOCK_TIME_NONE) {
-        GTimeVal timeValue;
-        GST_TIME_TO_TIMEVAL(position, timeValue);
-        result = static_cast<double>(timeValue.tv_sec + (timeValue.tv_usec / 1000000.0));
-    } else if (m_canFallBackToLastFinishedSeekPosition)
-        result = m_seekTime;
-
-#if PLATFORM(BCM_NEXUS) || 1
+#if PLATFORM(BCM_NEXUS) || 1    // for nexus query read video_pts
     // implement getting pts time from broadcom decoder directly for seek functionality
     gint64 currentPts = -1;
-    /*GstElement**/ videoDec = findVideoDecoder(m_pipeline.get());
+    GstElement* videoDec = findVideoDecoder(m_pipeline.get());
     const char* videoPtsPropertyName = "video_pts";
     if (videoDec)
         g_object_get(videoDec, videoPtsPropertyName, &currentPts, nullptr);
     if (currentPts > -1) {
         result = (static_cast<double>(currentPts * GST_MSECOND) / 45) / GST_SECOND;
         GST_DEBUG("Using position reported by the video decoder: %f", result);
-    }
+    } if (m_canFallBackToLastFinishedSeekPosition)
+    result = m_seekTime;
     if (!result && m_seekTime)
+        result = m_seekTime;
+#else                           // for non-nexus do position query
+    GstElement* videoDec = nullptr;
+    GstQuery* query = gst_query_new_position(GST_FORMAT_TIME);
+#if USE(FUSION_SINK)            // to video-sink on fusion-sink
+    g_object_get(m_pipeline.get(), "video-sink", &videoDec, nullptr);
+    if (!GST_IS_ELEMENT(videoDec)) {
+        fprintf(stderr,"POSITION[%4d]: %.3lf\n",__LINE__,(double)0);
+        return 0.0f;
+    }
+#else                           // to whole pipeline
+    videoDec = m_pipeline.get();
+#endif
+    // Position is only available if no async state change is going on and the state is either paused or playing.
+    gint64 position = GST_CLOCK_TIME_NONE;
+
+    if (gst_element_query(videoDec, query))
+        gst_query_parse_position(query, 0, &position);
+    gst_query_unref(query);
+
+    GST_DEBUG("Position %" GST_TIME_FORMAT, GST_TIME_ARGS(position));
+
+    if (static_cast<GstClockTime>(position) != GST_CLOCK_TIME_NONE) {
+        GTimeVal timeValue;
+        GST_TIME_TO_TIMEVAL(position, timeValue);
+        result = static_cast<double>(timeValue.tv_sec + (timeValue.tv_usec / 1000000.0));
+    } else if (m_canFallBackToLastFinishedSeekPosition)
         result = m_seekTime;
 #endif
 

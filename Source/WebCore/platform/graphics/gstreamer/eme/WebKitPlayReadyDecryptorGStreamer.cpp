@@ -101,7 +101,7 @@ static gboolean webKitMediaPlayReadyDecryptorHandleKeyResponse(WebKitMediaCommon
     WebKitMediaPlayReadyDecryptPrivate* priv = WEBKIT_MEDIA_PLAYREADY_DECRYPT_GET_PRIVATE(WEBKIT_MEDIA_PLAYREADY_DECRYPT(self));
 
     const GstStructure* structure = gst_event_get_structure(event);
-    const char* label = "playready-session";
+    const char* label = "cdm-session";
 
     if (gst_structure_has_name(structure, "playready-session"))
         g_print("XXXXX Found playready-session\n");
