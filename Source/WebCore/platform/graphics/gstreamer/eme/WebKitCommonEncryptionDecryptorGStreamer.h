@@ -55,7 +55,7 @@ struct _WebKitMediaCommonEncryptionDecryptClass {
     const char* protectionSystemId;
     gboolean (*handleKeyResponse)(WebKitMediaCommonEncryptionDecrypt*, GstEvent* event);
     gboolean (*setupCipher)(WebKitMediaCommonEncryptionDecrypt*);
-    gboolean (*decrypt)(WebKitMediaCommonEncryptionDecrypt*, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSamplesCount, GstBuffer* subSamplesBuffer);
+    gboolean (*decrypt)(WebKitMediaCommonEncryptionDecrypt*, GstBuffer* ivBuffer, GstBuffer* kid, GstBuffer* buffer, unsigned subSamplesCount, GstBuffer* subSamplesBuffer);
     void (*releaseCipher)(WebKitMediaCommonEncryptionDecrypt*);
 };
 

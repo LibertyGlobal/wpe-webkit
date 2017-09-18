@@ -235,7 +235,7 @@ bool PlayreadySession::playreadyProcessKey(Uint8Array* key, RefPtr<Uint8Array>& 
     return false;
 }
 
-int PlayreadySession::processPayload(const void* iv, uint32_t ivSize, void* payloadData, uint32_t payloadDataSize, void** decrypted)
+int PlayreadySession::processPayload(const void* iv, uint32_t ivSize, const void */*kid*/, uint32_t /*kidSize*/, void* payloadData, uint32_t payloadDataSize, void** decrypted)
 {
     DRM_Prdy_Error_e dr = DRM_Prdy_ok;
     uint8_t *nexus_heap = NULL;

@@ -45,8 +45,13 @@ public:
             client.build_info = __DATE__;
             widevine::Cdm::DeviceCertificateRequest cert_request;
             widevine::Cdm::Status status = widevine::Cdm::initialize(
-                widevine::Cdm::kOpaqueHandle, client, this, this, this, &cert_request,
-                widevine::Cdm::kVerbose );
+#ifndef WIDEVINE_BCM_NO_SVP
+                widevine::Cdm::kOpaqueHandle,
+#else
+                widevine::Cdm::kNoSecureOutput,
+#endif
+                client, this, this, this, &cert_request,
+                widevine::Cdm::kErrors );
             if( widevine::Cdm::kSuccess == status )
                 m_cdm = widevine::Cdm::create( this, true );
         }

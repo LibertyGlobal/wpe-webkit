@@ -287,6 +287,9 @@ protected:
     Condition m_drawCondition;
     Lock m_drawMutex;
 #endif
+#if ENABLE(ENCRYPTED_MEDIA)
+    void postPendingCDMSession();
+#endif
 
 private:
     WeakPtr<MediaPlayerPrivateGStreamerBase> createWeakPtr() { return m_weakPtrFactory.createWeakPtr(); }
@@ -342,6 +345,9 @@ private:
     WeakPtrFactory<MediaPlayerPrivateGStreamerBase> m_weakPtrFactory;
 
     bool m_pendingSizeSet;
+#if ENABLE(ENCRYPTED_MEDIA)
+    void *m_pendingCDMSession;
+#endif
 };
 
 }

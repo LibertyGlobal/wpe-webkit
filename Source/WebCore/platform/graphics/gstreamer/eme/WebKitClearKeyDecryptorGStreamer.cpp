@@ -40,7 +40,7 @@ struct _WebKitMediaClearKeyDecryptPrivate {
 static void webKitMediaClearKeyDecryptorFinalize(GObject*);
 static gboolean webKitMediaClearKeyDecryptorHandleKeyResponse(WebKitMediaCommonEncryptionDecrypt* self, GstEvent*);
 static gboolean webKitMediaClearKeyDecryptorSetupCipher(WebKitMediaCommonEncryptionDecrypt*);
-static gboolean webKitMediaClearKeyDecryptorDecrypt(WebKitMediaCommonEncryptionDecrypt*, GstBuffer* iv, GstBuffer* sample, unsigned subSamplesCount, GstBuffer* subSamples);
+static gboolean webKitMediaClearKeyDecryptorDecrypt(WebKitMediaCommonEncryptionDecrypt*, GstBuffer* iv, GstBuffer* kid, GstBuffer* sample, unsigned subSamplesCount, GstBuffer* subSamples);
 static void webKitMediaClearKeyDecryptorReleaseCipher(WebKitMediaCommonEncryptionDecrypt*);
 
 GST_DEBUG_CATEGORY_STATIC(webkit_media_clear_key_decrypt_debug_category);
@@ -163,7 +163,7 @@ static gboolean webKitMediaClearKeyDecryptorSetupCipher(WebKitMediaCommonEncrypt
     return true;
 }
 
-static gboolean webKitMediaClearKeyDecryptorDecrypt(WebKitMediaCommonEncryptionDecrypt* self, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer)
+static gboolean webKitMediaClearKeyDecryptorDecrypt(WebKitMediaCommonEncryptionDecrypt* self, GstBuffer* ivBuffer, GstBuffer* kid, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer)
 {
     GstMapInfo ivMap;
     if (!gst_buffer_map(ivBuffer, &ivMap, GST_MAP_READ)) {

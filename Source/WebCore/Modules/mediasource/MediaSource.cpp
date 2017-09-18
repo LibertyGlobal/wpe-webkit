@@ -422,7 +422,8 @@ void MediaSource::monitorSourceBuffers()
         // 1. Set the HTMLMediaElement.readyState attribute to HAVE_METADATA.
         // 2. If this is the first transition to HAVE_METADATA, then queue a task to fire a simple event
         // named loadedmetadata at the media element.
-        m_private->setReadyState(MediaPlayer::HaveMetadata);
+        if( m_private->readyState() > MediaPlayer::HaveMetadata )
+            m_private->setReadyState(MediaPlayer::HaveMetadata);
 
         // 3. Abort these steps.
         return;

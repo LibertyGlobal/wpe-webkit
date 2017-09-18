@@ -398,21 +398,35 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
     double result = 0.0f;
 #if PLATFORM(BCM_NEXUS) || 1    // for nexus query read video_pts
     // implement getting pts time from broadcom decoder directly for seek functionality
-    gint64 currentPts = -1;
-    GstElement* videoDec = findVideoDecoder(m_pipeline.get());
-    const char* videoPtsPropertyName = "video_pts";
-    if (videoDec)
-        g_object_get(videoDec, videoPtsPropertyName, &currentPts, nullptr);
-    if (currentPts > -1) {
-        result = (static_cast<double>(currentPts * GST_MSECOND) / 45) / GST_SECOND;
-        GST_DEBUG("Using position reported by the video decoder: %f", result);
-    } if (m_canFallBackToLastFinishedSeekPosition)
-    result = m_seekTime;
-    if (!result && m_seekTime)
-        result = m_seekTime;
+    if( m_hasVideo ) {
+        gint64 currentPts = -1;
+        GstElement* videoDec = findVideoDecoder(m_pipeline.get());
+        const char* videoPtsPropertyName = "video_pts";
+        if (videoDec)
+            g_object_get(videoDec, videoPtsPropertyName, &currentPts, nullptr);
+        if (currentPts > -1) {
+            result = (static_cast<double>(currentPts * GST_MSECOND) / 45) / GST_SECOND;
+            GST_DEBUG("Using position reported by the video decoder: %f", result);
+        }
+    } else {
+        GstQuery* query = gst_query_new_position(GST_FORMAT_TIME);
+
+        gint64 position = GST_CLOCK_TIME_NONE;
+
+        if (gst_element_query(m_pipeline.get(), query))
+            gst_query_parse_position(query, 0, &position);
+        gst_query_unref(query);
+
+        GST_DEBUG("Position %" GST_TIME_FORMAT, GST_TIME_ARGS(position));
+
+        if (static_cast<GstClockTime>(position) != GST_CLOCK_TIME_NONE) {
+            GTimeVal timeValue;
+            GST_TIME_TO_TIMEVAL(position, timeValue);
+            result = static_cast<double>(timeValue.tv_sec + (timeValue.tv_usec / 1000000.0));
+        }
+    }
 #else                           // for non-nexus do position query
     GstElement* videoDec = nullptr;
-    GstQuery* query = gst_query_new_position(GST_FORMAT_TIME);
 #if USE(FUSION_SINK)            // to video-sink on fusion-sink
     g_object_get(m_pipeline.get(), "video-sink", &videoDec, nullptr);
     if (!GST_IS_ELEMENT(videoDec)) {
@@ -435,9 +449,12 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
         GTimeVal timeValue;
         GST_TIME_TO_TIMEVAL(position, timeValue);
         result = static_cast<double>(timeValue.tv_sec + (timeValue.tv_usec / 1000000.0));
-    } else if (m_canFallBackToLastFinishedSeekPosition)
-        result = m_seekTime;
+    } else
 #endif
+    if (!result && m_canFallBackToLastFinishedSeekPosition)
+        result = m_seekTime;
+    if (!result && m_seekTime)
+        result = m_seekTime;
 
     m_cachedPosition = result;
     return normalizePosition( result, m_lastPosition, m_playbackRate );
@@ -1249,10 +1266,12 @@ void MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
                 updateStates();
             } else if (gst_structure_has_name(structure, "drm-key-needed")) {
                 GST_DEBUG("drm-key-needed message from %s", GST_MESSAGE_SRC_NAME(message));
+#if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA)
                 GRefPtr<GstEvent> event;
                 gst_structure_get(structure, "event", GST_TYPE_EVENT, &event.outPtr(), nullptr);
-#if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA)
                 handleProtectionEvent(event.get(), GST_ELEMENT(message->src));
+#elif ENABLE(ENCRYPTED_MEDIA)
+                postPendingCDMSession();
 #endif
             }
         }

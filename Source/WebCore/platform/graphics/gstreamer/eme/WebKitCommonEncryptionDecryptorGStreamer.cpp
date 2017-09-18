@@ -144,6 +144,11 @@ static GstCaps* webkitMediaCommonEncryptionDecryptTransformCaps(GstBaseTransform
                     || !g_strcmp0(fieldName, "pixel-aspect-ratio")
                     || !g_strcmp0(fieldName, "profile")
                     || !g_strcmp0(fieldName, "rate")
+                    || !g_strcmp0(fieldName, "channels")
+                    || !g_strcmp0(fieldName, "channel-mapping-family")
+                    || !g_strcmp0(fieldName, "stream-count")
+                    || !g_strcmp0(fieldName, "coupled-count")
+                    || !g_strcmp0(fieldName, "streamheader")
                     || !g_strcmp0(fieldName, "width")) {
                     gst_structure_remove_field(outgoingStructure.get(), fieldName);
                     GST_TRACE("Removing field %s", fieldName);
@@ -230,7 +235,7 @@ static GstFlowReturn webkitMediaCommonEncryptionDecryptTransformInPlace(GstBaseT
         return GST_FLOW_OK;
     }
 
-    GST_DEBUG_OBJECT(base, "protection meta: %" GST_PTR_FORMAT, protectionMeta->info);
+    GST_DEBUG_OBJECT(base, "buffer: %p, protection meta: %" GST_PTR_FORMAT, buffer, protectionMeta->info);
 
     unsigned subSampleCount;
     if (!gst_structure_get_uint(protectionMeta->info, "subsample_count", &subSampleCount)) {
@@ -251,6 +256,11 @@ static GstFlowReturn webkitMediaCommonEncryptionDecryptTransformInPlace(GstBaseT
         subSamplesBuffer = gst_value_get_buffer(value);
     }
 
+    GstBuffer* kid = nullptr;
+    value = gst_structure_get_value(protectionMeta->info, "kid");
+    if (value)
+        kid = gst_value_get_buffer(value);
+
     WebKitMediaCommonEncryptionDecryptClass* klass = WEBKIT_MEDIA_CENC_DECRYPT_GET_CLASS(self);
     if (!klass->setupCipher(self)) {
         GST_ERROR_OBJECT(self, "Failed to configure cipher");
@@ -268,7 +278,7 @@ static GstFlowReturn webkitMediaCommonEncryptionDecryptTransformInPlace(GstBaseT
 
     GstBuffer* ivBuffer = gst_value_get_buffer(value);
     GST_TRACE_OBJECT(self, "decrypting");
-    if (!klass->decrypt(self, ivBuffer, buffer, subSampleCount, subSamplesBuffer)) {
+    if (!klass->decrypt(self, ivBuffer, kid, buffer, subSampleCount, subSamplesBuffer)) {
         GST_ERROR_OBJECT(self, "Decryption failed");
         klass->releaseCipher(self);
         gst_buffer_remove_meta(buffer, reinterpret_cast<GstMeta*>(protectionMeta));

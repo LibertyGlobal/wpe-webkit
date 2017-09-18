@@ -540,6 +540,13 @@ void MediaPlayerPrivateGStreamerMSE::updateStates()
         if (m_resetPipeline)
             m_mediaTimeDuration = MediaTime::zeroTime();
 
+#if PLATFORM(BROADCOM) || 1
+        // this code path needs a proper review in case it can be generalized to all platforms.
+        bool buffering = !isTimeBuffered(currentMediaTime());
+#else
+        bool buffering = m_buffering;
+#endif
+
         // Update ready and network states.
         switch (state) {
         case GST_STATE_NULL:
@@ -574,7 +581,7 @@ void MediaPlayerPrivateGStreamerMSE::updateStates()
                 m_readyState = MediaPlayer::HaveEnoughData;
                 GST_DEBUG("m_readyState=%s", dumpReadyState(m_readyState));
                 m_networkState = MediaPlayer::Loaded;
-            } else {
+            } else if( !buffering ) {
                 m_readyState = MediaPlayer::HaveFutureData;
                 GST_DEBUG("m_readyState=%s", dumpReadyState(m_readyState));
                 m_networkState = MediaPlayer::Loading;
@@ -588,12 +595,6 @@ void MediaPlayerPrivateGStreamerMSE::updateStates()
             ASSERT_NOT_REACHED();
             break;
         }
-#if PLATFORM(BROADCOM) || 1
-        // this code path needs a proper review in case it can be generalized to all platforms.
-        bool buffering = !isTimeBuffered(currentMediaTime());
-#else
-        bool buffering = m_buffering;
-#endif
         // Sync states where needed.
         if (state == GST_STATE_PAUSED) {
             if (!m_volumeAndMuteInitialized) {
@@ -865,7 +866,7 @@ void MediaPlayerPrivateGStreamerMSE::attemptToDecryptWithInstance(const CDMInsta
         if (sessionpr->ready())
             for (auto it : m_appendPipelinesMap)
             {
-                it.value->setPendingCDMSession( sessionpr );
+                it.value->setPendingCDMSession( static_cast<CDMProcessPayloadBase*>(sessionpr) );
 //                 gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
 //                                                                                   gst_structure_new("playready-session", "session", G_TYPE_POINTER, sessionpr, nullptr)));
                 it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
@@ -882,7 +883,7 @@ void MediaPlayerPrivateGStreamerMSE::attemptToDecryptWithInstance(const CDMInsta
         if (sessionwv->ready())
             for (auto it : m_appendPipelinesMap)
             {
-                it.value->setPendingCDMSession( sessionwv );
+                it.value->setPendingCDMSession( static_cast<CDMProcessPayloadBase*>(sessionwv) );
 //                 gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
 //                                                                                   gst_structure_new("widevine-session", "session", G_TYPE_POINTER, sessionwv, nullptr)));
                 it.value->setAppendState(AppendPipeline::AppendState::Ongoing);

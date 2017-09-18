@@ -285,6 +285,9 @@ MediaPlayerPrivateGStreamerBase::MediaPlayerPrivateGStreamerBase(MediaPlayer* pl
 #endif
     , m_weakPtrFactory(this)
     , m_pendingSizeSet( false )
+#if ENABLE(ENCRYPTED_MEDIA)
+    , m_pendingCDMSession( nullptr )
+#endif
 {
     g_mutex_init(&m_sampleMutex);
 #if USE(COORDINATED_GRAPHICS_THREADED)
@@ -1622,7 +1625,7 @@ void MediaPlayerPrivateGStreamerBase::emitPlayReadySession(PlayreadySession* ses
         return;
 
     bool eventHandled = gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-        gst_structure_new("playready-session", "session", G_TYPE_POINTER, session, nullptr)));
+        gst_structure_new("cdm-session", "session", G_TYPE_POINTER, static_cast<CDMProcessPayloadBase*>(session), nullptr)));
     GST_TRACE("emitted PR session on pipeline, event handled %s", eventHandled ? "yes" : "no");
 }
 #endif
@@ -1650,7 +1653,7 @@ void MediaPlayerPrivateGStreamerBase::emitWidevineSession(WidevineSession* sessi
         return;
 
     bool eventHandled = gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-        gst_structure_new("widevine-session", "session", G_TYPE_POINTER, session, nullptr)));
+        gst_structure_new("cdm-session", "session", G_TYPE_POINTER, static_cast<CDMProcessPayloadBase*>(session), nullptr)));
     GST_TRACE("emitted WV session on pipeline, event handled %s", eventHandled ? "yes" : "no");
 }
 #endif
@@ -1704,28 +1707,37 @@ void MediaPlayerPrivateGStreamerBase::resetOpenCDMFlag()
 #endif // ENABLE(ENCRYPTED_MEDIA) && USE(OCDM)
 
 #if ENABLE(ENCRYPTED_MEDIA)
+void MediaPlayerPrivateGStreamerBase::postPendingCDMSession()
+{
+    if( m_pendingCDMSession ) {
+        gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
+                                                                      gst_structure_new("cdm-session", "session", G_TYPE_POINTER, m_pendingCDMSession, nullptr)));
+//         m_pendingCDMSession = NULL;
+    }
+}
+
 void MediaPlayerPrivateGStreamerBase::attemptToDecryptWithInstance(const CDMInstance& baseInstance)
 {
-#if USE(PLAYREADY)
+    #if USE(PLAYREADY)
     if( baseInstance.implementationType() == CDMInstance::ImplementationType::PlayReady )
     {
+        receivedGenerateKeyRequest(PLAYREADY_PROTECTION_SYSTEM_ID);
         auto& prinstance = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
         auto& prSession = prinstance.prSession();
 
         if (prSession.ready())
-            gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-                                                                          gst_structure_new("playready-session", "session", G_TYPE_POINTER, &prSession, nullptr)));
+            m_pendingCDMSession = static_cast<CDMProcessPayloadBase*>(&prSession);
     }
 #endif
 #if USE(WIDEVINE)
     if( baseInstance.implementationType() == CDMInstance::ImplementationType::Widevine )
     {
+        receivedGenerateKeyRequest(WIDEVINE_PROTECTION_SYSTEM_ID);
         auto& wvinstance = reinterpret_cast<const CDMInstanceWidevine&>(baseInstance);
         auto& wvSession = wvinstance.wvSession();
 
         if (wvSession.ready())
-            gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-                                                                        gst_structure_new("widevine-session", "session", G_TYPE_POINTER, &wvSession, nullptr)));
+            m_pendingCDMSession = static_cast<CDMProcessPayloadBase*>(&wvSession);
     }
 #endif
 
