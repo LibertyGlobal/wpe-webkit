@@ -181,27 +181,43 @@ static gboolean webKitMediaWidevineDecryptorDecrypt(WebKitMediaCommonEncryptionD
         // Find out the total size of the encrypted data.
         guint32 *svpp = svpSubsamplesBuffer = (guint32*) g_malloc(subSampleCount * 3 * sizeof(guint32));
 
-        for (position = 0; position < partitions; position++)
-        {
-            gst_byte_reader_get_uint32_be(reader, &offset);
-            diff = offset - last_offset;
-            *svpp++ = diff;
-            if( position % 2 == 0 ) {       // clear just added, svpp set on encrypted
-                svpp[1] = index;            // points to index;
-            } else {
-                totalEncrypted += diff;     // encrypted just added
-                svpp++;                     // jump over index;
+        ASSERT(priv->sessionMetaData);
+        if( priv->sessionMetaData->isCenc() ) {
+            for (position = 0; position < subSampleCount; position++)
+            {
+                guint16 inClear = 0;
+                guint32 inEncrypted = 0;
+                gst_byte_reader_get_uint16_be(reader, &inClear);
+                gst_byte_reader_get_uint32_be(reader, &inEncrypted);
+                *svpp++ = inClear;
+                *svpp++ = inEncrypted;
+                *svpp++ = index;
+                totalEncrypted += inEncrypted;
+                index += inClear + inEncrypted;
             }
-            index  += diff;
-            last_offset = offset;
-        }
-        if( partitions % 2 ) {
-            *svpp = map.size - offset;      // remainder is encrypted
-            totalEncrypted += *svpp;        // encrypted just added
-        } else {
-            svpp[ 0 ] = map.size - offset;  // remainder is clear
-            svpp[ 1 ] = 0;                  // no encrypted part
-            svpp[ 2 ] = index;              // index forwarded from last subsample
+        } else {    // webm subsamples
+            for (position = 0; position < partitions; position++)
+            {
+                gst_byte_reader_get_uint32_be(reader, &offset);
+                diff = offset - last_offset;
+                *svpp++ = diff;
+                if( position % 2 == 0 ) {       // clear just added, svpp set on encrypted
+                    svpp[1] = index;            // points to index;
+                } else {
+                    totalEncrypted += diff;     // encrypted just added
+                    svpp++;                     // jump over index;
+                }
+                index  += diff;
+                last_offset = offset;
+            }
+            if( partitions % 2 ) {
+                *svpp = map.size - offset;      // remainder is encrypted
+                totalEncrypted += *svpp;        // encrypted just added
+            } else {
+                svpp[ 0 ] = map.size - offset;  // remainder is clear
+                svpp[ 1 ] = 0;                  // no encrypted part
+                svpp[ 2 ] = index;              // index forwarded from last subsample
+            }
         }
 
         // Build a new buffer storing the entire encrypted cipher.
@@ -215,7 +231,6 @@ static gboolean webKitMediaWidevineDecryptorDecrypt(WebKitMediaCommonEncryptionD
         }
 
         // Decrypt cipher.
-        ASSERT(priv->sessionMetaData);
         if ((errorCode = priv->sessionMetaData->processPayload(static_cast<const void*>(ivMap.data), static_cast<uint32_t>(ivMap.size), static_cast<const void*>(kidMap.data), static_cast<uint32_t>(kidMap.size), static_cast<void*>(fEncryptedData), static_cast<uint32_t>(totalEncrypted), &decrypted)))
         {
             GST_WARNING_OBJECT(self, "ERROR - packet decryption failed [%d]", errorCode);

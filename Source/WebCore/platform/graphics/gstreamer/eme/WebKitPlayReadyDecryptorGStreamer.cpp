@@ -143,8 +143,6 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
     GstByteReader* reader = nullptr;
     gboolean bufferMapped, subsamplesBufferMapped;
     int errorCode;
-    guint16 inClear = 0;
-    guint32 inEncrypted = 0;
     guint32 totalEncrypted = 0;
     uint8_t* encryptedData;
     uint8_t* fEncryptedData;
@@ -189,6 +187,8 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
         // Find out the total size of the encrypted data.
         for (position = 0; position < subSampleCount; position++)
         {
+            guint16 inClear = 0;
+            guint32 inEncrypted = 0;
             gst_byte_reader_get_uint16_be(reader, &inClear);
             gst_byte_reader_get_uint32_be(reader, &inEncrypted);
             *svpp++ = inClear;
@@ -197,7 +197,6 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
             totalEncrypted += inEncrypted;
             index += inClear + inEncrypted;
         }
-        gst_byte_reader_set_pos(reader, 0);
 
         // Build a new buffer storing the entire encrypted cipher.
         encryptedData = fEncryptedData = (uint8_t*) g_malloc(totalEncrypted);
