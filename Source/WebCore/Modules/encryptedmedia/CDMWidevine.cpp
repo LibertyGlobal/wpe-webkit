@@ -35,7 +35,7 @@ public:
 
     inline widevine::Cdm *cdm() {
         if (!m_cdm ) {
-            widevine::Cdm::ClientInfo client = { "HorizonBox", "Liberty Global", "STB", "EOS" };
+            widevine::Cdm::ClientInfo client = { "HorizonBox", "Liberty Global", "STB", "EOS", "", "" };
             {
                 struct utsname name;
                 if (uname(&name) == 0) {
@@ -51,7 +51,7 @@ public:
                 widevine::Cdm::kNoSecureOutput,
 #endif
                 client, this, this, this, &cert_request,
-                widevine::Cdm::kErrors );
+                widevine::Cdm::kVerbose );
             if( widevine::Cdm::kSuccess == status )
                 m_cdm = widevine::Cdm::create( this, true );
         }
@@ -350,7 +350,7 @@ CDMInstance::SuccessValue CDMInstanceWidevine::setServerCertificate(Ref<SharedBu
     return Failed;
 }
 
-void CDMInstanceWidevine::requestLicense(LicenseType, const AtomicString& initDataType, Ref<SharedBuffer>&& initData, LicenseCallback callback)
+void CDMInstanceWidevine::requestLicense(LicenseType, const AtomicString& /*initDataType*/, Ref<SharedBuffer>&& initData, LicenseCallback callback)
 {
     fprintf(stderr, "NotImplemented: CDMInstanceWidevine::%s(), %d\n", __func__,initData->size());
     unsigned short  errorCode   = 0;
@@ -368,7 +368,7 @@ void CDMInstanceWidevine::requestLicense(LicenseType, const AtomicString& initDa
     callback(SharedBuffer::create(result->data(), result->byteLength()), m_wvSession->sessionId(), false, Succeeded);
 }
 
-void CDMInstanceWidevine::updateLicense(const String& sessionId, LicenseType, const SharedBuffer& response, LicenseUpdateCallback callback)
+void CDMInstanceWidevine::updateLicense(const String& /*sessionId*/, LicenseType, const SharedBuffer& response, LicenseUpdateCallback callback)
 {
     fprintf(stderr, "NotImplemented: CDMInstancePlayReady::%s()\n", __func__);
 
@@ -401,22 +401,22 @@ void CDMInstanceWidevine::updateLicense(const String& sessionId, LicenseType, co
     callback(false, WTFMove(changedKeys), std::nullopt, std::nullopt, Succeeded);
 }
 
-void CDMInstanceWidevine::loadSession(LicenseType, const String& sessionId, const String& origin, LoadSessionCallback)
+void CDMInstanceWidevine::loadSession(LicenseType, const String& /*sessionId*/, const String& /*origin*/, LoadSessionCallback)
 {
     fprintf(stderr, "NotImplemented: CDMInstanceWidevine::%s()\n", __func__);
 }
 
-void CDMInstanceWidevine::closeSession(const String& sessionId, CloseSessionCallback)
+void CDMInstanceWidevine::closeSession(const String& /*sessionId*/, CloseSessionCallback)
 {
     fprintf(stderr, "NotImplemented: CDMInstanceWidevine::%s()\n", __func__);
 }
 
-void CDMInstanceWidevine::removeSessionData(const String& sessionId, LicenseType, RemoveSessionDataCallback)
+void CDMInstanceWidevine::removeSessionData(const String& /*sessionId*/, LicenseType, RemoveSessionDataCallback)
 {
     fprintf(stderr, "NotImplemented: CDMInstanceWidevine::%s()\n", __func__);
 }
 
-void CDMInstanceWidevine::storeRecordOfKeyUsage(const String& sessionId)
+void CDMInstanceWidevine::storeRecordOfKeyUsage(const String& /*sessionId*/)
 {
     fprintf(stderr, "NotImplemented: CDMInstanceWidevine::%s()\n", __func__);
 }
