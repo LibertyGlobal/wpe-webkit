@@ -136,7 +136,8 @@ static gboolean webKitMediaWidevineDecryptorDecrypt(WebKitMediaCommonEncryptionD
 //    unsigned total = 0;
     void* decrypted = NULL;
     guint32 *svpSubsamplesBuffer = nullptr;
-    subSampleCount = partitions / 2 + 1;
+    if( !priv->sessionMetaData->isCenc() )
+        subSampleCount = partitions / 2 + 1;
 
     GST_DEBUG_OBJECT(self, "subsamples: buffer=%p, count=%d", subSamplesBuffer, subSampleCount);
 
