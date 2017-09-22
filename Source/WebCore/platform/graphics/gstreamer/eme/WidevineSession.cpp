@@ -20,6 +20,14 @@
 GST_DEBUG_CATEGORY_EXTERN(webkit_media_widevine_decrypt_debug_category);
 #define GST_CAT_DEFAULT webkit_media_widevine_decrypt_debug_category
 
+#ifdef  WIDEVINE_BCM_NO_SVP
+static inline bool _wvSVPOff() {
+    static const char *_env = getenv("WEBKIT_WV_NO_SVP");
+    static bool flag = _env && *_env;
+    return flag;
+}
+#endif
+
 namespace WebCore
 {
 widevine::Cdm* getWidevineCDM();
@@ -136,33 +144,37 @@ int WidevineSession::processPayload(const void* iv, uint32_t ivSize, const void 
         ib.iv               = reinterpret_cast<const uint8_t*>(ivTemp);
         ib.iv_length        = 16;
 
-#ifndef WIDEVINE_BCM_NO_SVP
-        NEXUS_MemoryAllocationSettings memSettings;
-        NEXUS_Memory_GetDefaultAllocationSettings(&memSettings);
-        memSettings.heap = NEXUS_Heap_Lookup(NEXUS_HeapLookupType_eMain);
+#ifdef  WIDEVINE_BCM_NO_SVP
+        if( _wvSVPOff() ) {
+            ob.data = nexus_heap = reinterpret_cast<uint8_t*>( payloadData );
+        } else {
+#endif
+            NEXUS_MemoryAllocationSettings memSettings;
+            NEXUS_Memory_GetDefaultAllocationSettings(&memSettings);
+            memSettings.heap = NEXUS_Heap_Lookup(NEXUS_HeapLookupType_eMain);
 
-        if( NEXUS_Memory_Allocate(payloadDataSize, &memSettings, (void**)&nexus_heap) !=  NEXUS_SUCCESS)
-        {
-            GST_ERROR("NEXUS_Memory_Allocate failed");
-            break;
+            if( NEXUS_Memory_Allocate(payloadDataSize, &memSettings, (void**)&nexus_heap) !=  NEXUS_SUCCESS)
+            {
+                GST_ERROR("NEXUS_Memory_Allocate failed");
+                break;
+            }
+            memcpy(nexus_heap, payloadData, payloadDataSize);
+
+            GST_DEBUG("allocate srai");
+            *decrypted = SRAI_Memory_Allocate(payloadDataSize, SRAI_MemoryType_SagePrivate);
+            if (*decrypted == NULL)
+            {
+                GST_ERROR("SRAI_Memory_Allocate failed");
+                break;
+            }
+
+            GST_DEBUG("*decrypted=%p, nexus_heap=%p, size=%d", *decrypted, nexus_heap, payloadDataSize);
+
+            NEXUS_FlushCache(nexus_heap, payloadDataSize);
+            ob.data = reinterpret_cast<uint8_t*>(*decrypted);
+            ob.is_secure = true;
+#ifdef  WIDEVINE_BCM_NO_SVP
         }
-        memcpy(nexus_heap, payloadData, payloadDataSize);
-
-        GST_DEBUG("allocate srai");
-        *decrypted = SRAI_Memory_Allocate(payloadDataSize, SRAI_MemoryType_SagePrivate);
-        if (*decrypted == NULL)
-        {
-            GST_ERROR("SRAI_Memory_Allocate failed");
-            break;
-        }
-
-        GST_DEBUG("*decrypted=%p, nexus_heap=%p, size=%d", *decrypted, nexus_heap, payloadDataSize);
-
-        NEXUS_FlushCache(nexus_heap, payloadDataSize);
-        ob.data = reinterpret_cast<uint8_t*>(*decrypted);
-        ob.is_secure = true;
-#else
-        ob.data = nexus_heap = reinterpret_cast<uint8_t*>( payloadData );
 #endif
         ib.data = nexus_heap;
         ib.data_length = payloadDataSize;
@@ -175,21 +187,16 @@ int WidevineSession::processPayload(const void* iv, uint32_t ivSize, const void 
             break;
         }
 
-#ifndef WIDEVINE_BCM_NO_SVP
-        NEXUS_FlushCache(nexus_heap, payloadDataSize);
-
-        if (nexus_heap != NULL)
-            NEXUS_Memory_Free(nexus_heap);
-#else
-//         FILE *fd = fopen("/tmp/pes_audio_capture.pes","a");
-//         fwrite(nexus_heap, 1, payloadDataSize,fd);
-//         fclose(fd);
+#ifdef  WIDEVINE_BCM_NO_SVP
+        if( !_wvSVPOff() ) {
 #endif
-//         if( m_initType == widevine::Cdm::kWebM ) {
-//             m_offset += payloadDataSize;
-//             m_offset %= 16;
-//         }
+            NEXUS_FlushCache(nexus_heap, payloadDataSize);
 
+            if (nexus_heap != NULL)
+                NEXUS_Memory_Free(nexus_heap);
+#ifdef  WIDEVINE_BCM_NO_SVP
+        }
+#endif
         return 0;
     }
     while (0);

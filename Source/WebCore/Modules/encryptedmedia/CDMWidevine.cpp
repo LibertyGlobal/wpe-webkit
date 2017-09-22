@@ -44,14 +44,13 @@ public:
             }
             client.build_info = __DATE__;
             widevine::Cdm::DeviceCertificateRequest cert_request;
-            widevine::Cdm::Status status = widevine::Cdm::initialize(
-#ifndef WIDEVINE_BCM_NO_SVP
-                widevine::Cdm::kOpaqueHandle,
-#else
-                widevine::Cdm::kNoSecureOutput,
+            widevine::Cdm::SecureOutputType         output_type = widevine::Cdm::kOpaqueHandle;
+#ifdef WIDEVINE_BCM_NO_SVP
+            const char *_env = getenv("WEBKIT_WV_NO_SVP");
+            if( _env && *_env )
+                output_type = widevine::Cdm::kNoSecureOutput;
 #endif
-                client, this, this, this, &cert_request,
-                widevine::Cdm::kVerbose );
+            widevine::Cdm::Status status = widevine::Cdm::initialize( output_type, client, this, this, this, &cert_request, widevine::Cdm::kVerbose );
             if( widevine::Cdm::kSuccess == status )
                 m_cdm = widevine::Cdm::create( this, true );
         }
