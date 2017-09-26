@@ -9,6 +9,9 @@
 #include <wtf/CurrentTime.h>
 #include <wtf/RunLoop.h>
 #include "cdm/cdm.h"
+#define TARGET_LITTLE_ENDIAN 1
+#define BSTD_CPU_ENDIAN BSTD_ENDIAN_LITTLE
+#include "tl/drm_wvoemcrypto_tl.h"
 #include <list>
 #include <map>
 #include <sys/utsname.h>
@@ -41,6 +44,14 @@ public:
                 if (uname(&name) == 0) {
                     client.arch_name = name.machine;
                 }
+            }
+            const char *_drmDir = getenv("WEBKIT_WV_DRM_BIN");
+            if( _drmDir && *_drmDir ) {
+                Drm_WVOemCryptoParamSettings_t wvParamSettings;
+                int wvRc;
+                DRM_WVOEMCrypto_GetDefaultParamSettings( &wvParamSettings );
+                wvParamSettings.drm_bin_file_path = (char*)_drmDir;
+                DRM_WVOemCrypto_Initialize( &wvParamSettings, &wvRc );
             }
             client.build_info = __DATE__;
             widevine::Cdm::DeviceCertificateRequest cert_request;
