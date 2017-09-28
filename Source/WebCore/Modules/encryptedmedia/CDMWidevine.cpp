@@ -45,14 +45,6 @@ public:
                     client.arch_name = name.machine;
                 }
             }
-            const char *_drmDir = getenv("WEBKIT_WV_DRM_BIN");
-            if( _drmDir && *_drmDir ) {
-                Drm_WVOemCryptoParamSettings_t wvParamSettings;
-                int wvRc;
-                DRM_WVOEMCrypto_GetDefaultParamSettings( &wvParamSettings );
-                wvParamSettings.drm_bin_file_path = (char*)_drmDir;
-                DRM_WVOemCrypto_Initialize( &wvParamSettings, &wvRc );
-            }
             client.build_info = __DATE__;
             widevine::Cdm::DeviceCertificateRequest cert_request;
             widevine::Cdm::SecureOutputType         output_type = widevine::Cdm::kOpaqueHandle;

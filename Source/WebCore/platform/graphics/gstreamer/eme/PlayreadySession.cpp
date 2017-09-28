@@ -65,9 +65,9 @@ PlayreadySession::PlayreadySession(const Vector<uint8_t> &initData, const void* 
 {
     DRM_Prdy_Init_t     prdyParamSettings;
     DRM_Prdy_GetDefaultParamSettings(&prdyParamSettings);
-    const char *_env = getenv("WEBKIT_MSPR_DIR");
+    const char *_env = getenv("WEBKIT_MSPR_DRM_BIN");
     if( _env && *_env )
-        prdyParamSettings.defaultRWDirName = (char*)_env;
+        prdyParamSettings.binFileName = (char*)_env;
     prdyParamSettings.hdsFileName = (char*)"/tmp/drmstore.dat";
     BKNI_Memset(&pDecryptContext, 0, sizeof(DRM_Prdy_DecryptContext_t));
 
