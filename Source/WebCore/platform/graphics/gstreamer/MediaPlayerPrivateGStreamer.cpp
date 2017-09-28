@@ -2090,7 +2090,7 @@ const HashSet<String, ASCIICaseInsensitiveHash>& MediaPlayerPrivateGStreamer::mi
         }
 
         bool opusSupported = false;
-        if (gstRegistryHasElementForMediaType(audioDecoderFactories, "audio/x-opus")) {
+        if (gstRegistryHasElementForMediaType(audioDecoderFactories, "audio/x-opus") && 0) {	// BUNIO: temporarily disabled because of Nexus
             opusSupported = true;
             set.add(AtomicString("audio/opus"));
         }
