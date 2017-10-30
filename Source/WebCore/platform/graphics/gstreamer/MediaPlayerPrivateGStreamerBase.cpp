@@ -285,9 +285,6 @@ MediaPlayerPrivateGStreamerBase::MediaPlayerPrivateGStreamerBase(MediaPlayer* pl
 #endif
     , m_weakPtrFactory(this)
     , m_pendingSizeSet( false )
-#if ENABLE(ENCRYPTED_MEDIA)
-    , m_pendingCDMSession( nullptr )
-#endif
 {
     g_mutex_init(&m_sampleMutex);
 #if USE(COORDINATED_GRAPHICS_THREADED)
@@ -565,6 +562,8 @@ bool MediaPlayerPrivateGStreamerBase::handleSyncMessage(GstMessage* message)
             sessionId = prSession->sessionId();
 #endif
 
+        bindInitData(concatenatedInitDataChunks);
+
         RunLoop::main().dispatch([this, eventKeySystemIdString, sessionId, initData = WTFMove(concatenatedInitDataChunks)] {
             GST_DEBUG("scheduling keyNeeded event for %s with concatenated init datas size of %" G_GSIZE_FORMAT, eventKeySystemIdString.utf8().data(), initData.size());
             GST_MEMDUMP("init datas", initData.data(), initData.size());
@@ -594,9 +593,9 @@ bool MediaPlayerPrivateGStreamerBase::handleSyncMessage(GstMessage* message)
 #endif
         });
 
-        GST_INFO("waiting for a key request to arrive");
+        GST_INFO("waiting for a key request to arrive, %p",getPipeline(GST_ELEMENT(message->src)));
         LockHolder lock(m_protectionMutex);
-        m_protectionCondition.waitFor(m_protectionMutex, Seconds(4), [this] {
+        m_protectionCondition.waitFor(m_protectionMutex, Seconds(30), [this] {
             return !this->m_lastGenerateKeyRequestKeySystemUuid.isEmpty();
         });
         if (!m_lastGenerateKeyRequestKeySystemUuid.isEmpty()) {
@@ -1709,35 +1708,41 @@ void MediaPlayerPrivateGStreamerBase::resetOpenCDMFlag()
 #if ENABLE(ENCRYPTED_MEDIA)
 void MediaPlayerPrivateGStreamerBase::postPendingCDMSession()
 {
-    if( m_pendingCDMSession ) {
+    while( !m_pendingCDMSessions.empty() ) {
         gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-                                                                      gst_structure_new("cdm-session", "session", G_TYPE_POINTER, m_pendingCDMSession, nullptr)));
-//         m_pendingCDMSession = NULL;
+                                                                      gst_structure_new("cdm-session", "session", G_TYPE_POINTER, m_pendingCDMSessions.front(), nullptr)));
+        m_pendingCDMSessions.pop_front();
     }
 }
 
 void MediaPlayerPrivateGStreamerBase::attemptToDecryptWithInstance(const CDMInstance& baseInstance)
 {
-    #if USE(PLAYREADY)
+#if USE(PLAYREADY)
     if( baseInstance.implementationType() == CDMInstance::ImplementationType::PlayReady )
     {
-        receivedGenerateKeyRequest(PLAYREADY_PROTECTION_SYSTEM_ID);
         auto& prinstance = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
-        auto& prSession = prinstance.prSession();
+        std::list<PlayreadySession*>& prSessions = prinstance.prSessions();
 
-        if (prSession.ready())
-            m_pendingCDMSession = static_cast<CDMProcessPayloadBase*>(&prSession);
+        for( std::list<PlayreadySession*>::iterator it = prSessions.begin(); it != prSessions.end(); ++it ) {
+            if ((*it)->ready()) {
+                receivedGenerateKeyRequest(PLAYREADY_PROTECTION_SYSTEM_ID);
+                m_pendingCDMSessions.push_back( static_cast<CDMProcessPayloadBase*>(*it) );
+            }
+        }
     }
 #endif
 #if USE(WIDEVINE)
     if( baseInstance.implementationType() == CDMInstance::ImplementationType::Widevine )
     {
-        receivedGenerateKeyRequest(WIDEVINE_PROTECTION_SYSTEM_ID);
         auto& wvinstance = reinterpret_cast<const CDMInstanceWidevine&>(baseInstance);
-        auto& wvSession = wvinstance.wvSession();
+        std::list<WidevineSession*>& wvSessions = wvinstance.wvSessions();
 
-        if (wvSession.ready())
-            m_pendingCDMSession = static_cast<CDMProcessPayloadBase*>(&wvSession);
+        for( std::list<WidevineSession*>::iterator it = wvSessions.begin(); it != wvSessions.end(); ++it ) {
+            if ((*it)->ready()) {
+                receivedGenerateKeyRequest(WIDEVINE_PROTECTION_SYSTEM_ID);
+                m_pendingCDMSessions.push_back( static_cast<CDMProcessPayloadBase*>(*it) );
+            }
+        }
     }
 #endif
 
@@ -2097,6 +2102,11 @@ void MediaPlayerPrivateGStreamerBase::dispatchDecryptionKey(GstBuffer* buffer)
 {
     gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
         gst_structure_new("drm-cipher", "key", GST_TYPE_BUFFER, buffer, nullptr)));
+}
+
+void MediaPlayerPrivateGStreamerBase::bindInitData( const Vector<uint8_t> & )
+{
+
 }
 
 void MediaPlayerPrivateGStreamerBase::handleProtectionEvent(GstEvent* event, GstElement* element)

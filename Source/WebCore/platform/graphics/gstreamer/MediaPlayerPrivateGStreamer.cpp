@@ -1099,7 +1099,7 @@ void MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
     // We ignore state changes from internal elements. They are forwarded to playbin2 anyway.
     bool messageSourceIsPlaybin = GST_MESSAGE_SRC(message) == reinterpret_cast<GstObject*>(m_pipeline.get());
 
-    GST_TRACE("Message %s received from element %s", GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_SRC_NAME(message));
+//     GST_TRACE("Message %s received from element %s", GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_SRC_NAME(message));
     switch (GST_MESSAGE_TYPE(message)) {
     case GST_MESSAGE_ERROR:
 #if USE(OCDM) && (ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA))
@@ -1297,8 +1297,8 @@ void MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
         break;
     }
     default:
-        GST_DEBUG("Unhandled GStreamer message type: %s",
-                    GST_MESSAGE_TYPE_NAME(message));
+//         GST_DEBUG("Unhandled GStreamer message type: %s",
+//                     GST_MESSAGE_TYPE_NAME(message));
         break;
     }
     return;
@@ -2335,6 +2335,11 @@ AudioSourceProvider* MediaPlayerPrivateGStreamer::audioSourceProvider()
 void MediaPlayerPrivateGStreamer::createGSTPlayBin()
 {
     ASSERT(!m_pipeline);
+
+    if(isMediaSource())
+        setenv("GST_BRCM_VF_DISABLE_CHAIN_WORKAROUND","1",1);
+    else
+        unsetenv("GST_BRCM_VF_DISABLE_CHAIN_WORKAROUND");
 
     // gst_element_factory_make() returns a floating reference so
     // we should not adopt.

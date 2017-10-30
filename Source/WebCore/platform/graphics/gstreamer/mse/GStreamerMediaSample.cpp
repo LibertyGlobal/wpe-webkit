@@ -73,7 +73,7 @@ Ref<GStreamerMediaSample> GStreamerMediaSample::createFakeSample(GstCaps*, Media
     gstreamerMediaSample->m_pts = pts;
     gstreamerMediaSample->m_dts = dts;
     gstreamerMediaSample->m_duration = duration;
-    gstreamerMediaSample->m_flags = MediaSample::IsNonDisplaying;
+    gstreamerMediaSample->m_flags = MediaSample::IsSync;
     return adoptRef(*gstreamerMediaSample);
 }
 

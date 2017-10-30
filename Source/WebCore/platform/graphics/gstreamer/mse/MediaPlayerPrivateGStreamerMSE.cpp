@@ -765,11 +765,14 @@ void MediaPlayerPrivateGStreamerMSE::trackDetected(RefPtr<AppendPipeline> append
 bool MediaPlayerPrivateGStreamerMSE::supportsCodecs(const String& codecs)
 {
     static Vector<const char*> supportedCodecs = { "avc*", "mp4a*", "mpeg", "x-h264", "vp9", "x-vp9", "opus", "x-opus" };
+    static Vector<const char*> unsupportedCodecs = { "vp9.2" };	// subfilter the codecs here!
     Vector<String> codecEntries;
     codecs.split(',', false, codecEntries);
 
     for (String codec : codecEntries) {
+//         fprintf(stderr," CODEC: %s\n", codec.utf8().data());
         bool isCodecSupported = false;
+        bool isCodecUnsupported = false;
 
         // If the codec is named like a mimetype (eg: video/avc) remove the "video/" part.
         size_t slashIndex = codec.find('/');
@@ -777,6 +780,13 @@ bool MediaPlayerPrivateGStreamerMSE::supportsCodecs(const String& codecs)
             codec = codec.substring(slashIndex+1);
 
         const char* codecData = codec.utf8().data();
+        for (const auto& pattern : unsupportedCodecs) {
+            isCodecUnsupported = !fnmatch(pattern, codecData, 0);
+            if (isCodecUnsupported)
+                break;
+        }
+        if (isCodecUnsupported)
+            return false;
         for (const auto& pattern : supportedCodecs) {
             isCodecSupported = !fnmatch(pattern, codecData, 0);
             if (isCodecSupported)
@@ -856,40 +866,113 @@ void MediaPlayerPrivateGStreamerMSE::emitPlayReadySession(PlayreadySession* sess
 #if ENABLE(ENCRYPTED_MEDIA)
 void MediaPlayerPrivateGStreamerMSE::attemptToDecryptWithInstance(const CDMInstance& baseInstance)
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
 #if USE(PLAYREADY)
     if( baseInstance.implementationType() == CDMInstance::ImplementationType::PlayReady )
     {
-        receivedGenerateKeyRequest(PLAYREADY_PROTECTION_SYSTEM_ID);
+        fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
         auto& instancepr = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
-        auto sessionpr = &(instancepr.prSession());
-
-        if (sessionpr->ready())
+        std::list<PlayreadySession*> &sessionpr = instancepr.prSessions();
+        std::list<PlayreadySession*>::iterator pr = sessionpr.begin();
+        int count = 0;
+        if( pr == sessionpr.end() )
+            return;
+        while( pr != sessionpr.end() ) {
+            if( !(*pr)->ready() )
+                return;
+            ++pr;
+            count++;
+        }
+        pr = sessionpr.begin();
+        if( count == 1 ) {
+            receivedGenerateKeyRequest(PLAYREADY_PROTECTION_SYSTEM_ID);
+            fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
             for (auto it : m_appendPipelinesMap)
             {
-                it.value->setPendingCDMSession( static_cast<CDMProcessPayloadBase*>(sessionpr) );
-//                 gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-//                                                                                   gst_structure_new("playready-session", "session", G_TYPE_POINTER, sessionpr, nullptr)));
+                it.value->setPendingCDMSession( static_cast<CDMProcessPayloadBase*>(*pr) );
                 it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
             }
+        } else  {
+            fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
+            for (auto it : m_appendPipelinesMap)
+            {
+                fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
+                for( pr : sessionpr )
+                {
+                    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
+                    if( it.value->testInitData( pr->initData() ) )
+                    {
+                        fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
+                        receivedGenerateKeyRequest(PLAYREADY_PROTECTION_SYSTEM_ID);
+                        it.value->setPendingCDMSession( static_cast<CDMProcessPayloadBase*>(&*pr) );
+                        it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
+                    }
+                }
+            }
+        }
     }
 #endif
 #if USE(WIDEVINE)
     if( baseInstance.implementationType() == CDMInstance::ImplementationType::Widevine )
     {
-        receivedGenerateKeyRequest(WIDEVINE_PROTECTION_SYSTEM_ID);
+        fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
         auto& instancewv = reinterpret_cast<const CDMInstanceWidevine&>(baseInstance);
-        auto sessionwv = &(instancewv.wvSession());
 
-        if (sessionwv->ready())
+        std::list<WidevineSession*> &sessionwv = instancewv.wvSessions();
+        std::list<WidevineSession*>::iterator wv = sessionwv.begin();
+        int count = 0;
+        if( wv == sessionwv.end() )
+            return;
+        while( wv != sessionwv.end() ) {
+            if( !(*wv)->ready() )
+                return;
+            ++wv;
+            count++;
+        }
+        wv = sessionwv.begin();
+        if( count == 1 ) {
+            if ((*wv)->ready()) {
+                receivedGenerateKeyRequest(WIDEVINE_PROTECTION_SYSTEM_ID);
+                fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
+                for (auto it : m_appendPipelinesMap)
+                {
+                    it.value->setPendingCDMSession( static_cast<CDMProcessPayloadBase*>(*wv) );
+                    it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
+                }
+            }
+        } else {
+            fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
             for (auto it : m_appendPipelinesMap)
             {
-                it.value->setPendingCDMSession( static_cast<CDMProcessPayloadBase*>(sessionwv) );
-//                 gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-//                                                                                   gst_structure_new("widevine-session", "session", G_TYPE_POINTER, sessionwv, nullptr)));
-                it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
+                fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
+                for( wv : sessionwv )
+                {
+                    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
+                    if( it.value->testInitData( wv->initData() ) )
+                    {
+                        fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
+                        receivedGenerateKeyRequest(WIDEVINE_PROTECTION_SYSTEM_ID);
+                        it.value->setPendingCDMSession( static_cast<CDMProcessPayloadBase*>(&*wv) );
+                        it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
+                    }
+                }
             }
+        }
     }
 #endif
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
+}
+
+void MediaPlayerPrivateGStreamerMSE::bindInitData( const Vector<uint8_t> &lastInitData )
+{
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
+    for (auto it : m_appendPipelinesMap) {
+        if( it.value->avaitingInitData() ) {
+            it.value->bindInitData( lastInitData );
+            fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
+            break;
+        }
+    }
 }
 #endif
 

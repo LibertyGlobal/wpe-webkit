@@ -65,6 +65,7 @@ MediaKeySession::MediaKeySession(ScriptExecutionContext& context, MediaKeys& key
     , m_eventQueue(*this)
     , m_weakPtrFactory(this)
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     // https://w3c.github.io/encrypted-media/#dom-mediakeys-setservercertificate
     // W3C Editor's Draft 09 November 2016
     // createSession(), ctd.
@@ -90,11 +91,13 @@ MediaKeySession::MediaKeySession(ScriptExecutionContext& context, MediaKeys& key
 
 MediaKeySession::~MediaKeySession()
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     m_keyStatuses->detachSession();
 }
 
 void MediaKeySession::detachKeys()
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     m_keys = nullptr;
 }
 
@@ -242,6 +245,7 @@ void MediaKeySession::generateRequest(const AtomicString& initDataType, const Bu
 
 void MediaKeySession::load(const String& sessionId, Ref<DeferredPromise>&& promise)
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     // https://w3c.github.io/encrypted-media/#dom-mediakeysession-load
     // W3C Editor's Draft 09 November 2016
 
@@ -267,6 +271,7 @@ void MediaKeySession::load(const String& sessionId, Ref<DeferredPromise>&& promi
 
     // 7. Let promise be a new promise.
     // 8. Run the following steps in parallel:
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     m_taskQueue.enqueueTask([this, sessionId, promise = WTFMove(promise)] () mutable {
         // 8.1. Let sanitized session ID be a validated and/or sanitized version of sessionId.
         // 8.2. If the preceding step failed, or if sanitized session ID is empty, reject promise with a newly created TypeError.
@@ -288,6 +293,7 @@ void MediaKeySession::load(const String& sessionId, Ref<DeferredPromise>&& promi
         // 8.6. Let message type be null.
         // 8.7. Let cdm be the CDM instance represented by this object's cdm instance value.
         // 8.8. Use the cdm to execute the following steps:
+        fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
         m_instance->loadSession(m_sessionType, *sanitizedSessionId, origin, [this, weakThis = m_weakPtrFactory.createWeakPtr(), promise = WTFMove(promise), sanitizedSessionId = *sanitizedSessionId] (std::optional<CDMInstance::KeyStatusVector>&& knownKeys, std::optional<double>&& expiration, std::optional<CDMInstance::Message>&& message, CDMInstance::SuccessValue succeeded, CDMInstance::SessionLoadFailure failure) mutable {
             // 8.8.1. If there is no data stored for the sanitized session ID in the origin, resolve promise with false and abort these steps.
             // 8.8.2. If the stored session's session type is not the same as the current MediaKeySession session type, reject promise with a newly created TypeError.
@@ -319,8 +325,10 @@ void MediaKeySession::load(const String& sessionId, Ref<DeferredPromise>&& promi
             }
 
             // 8.9. Queue a task to run the following steps:
+            fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
             m_taskQueue.enqueueTask([this, knownKeys = WTFMove(knownKeys), expiration = WTFMove(expiration), message = WTFMove(message), sanitizedSessionId, succeeded, promise = WTFMove(promise)] () mutable {
                 // 8.9.1. If any of the preceding steps failed, reject promise with a the appropriate error name.
+                fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
                 if (succeeded == CDMInstance::SuccessValue::Failed) {
                     promise->reject(NOT_SUPPORTED_ERR);
                     return;
@@ -332,6 +340,7 @@ void MediaKeySession::load(const String& sessionId, Ref<DeferredPromise>&& promi
                 m_callable = true;
 
                 // 8.9.4. If the loaded session contains information about any keys (there are known keys), run the Update Key Statuses algorithm on the session, providing each key's key ID along with the appropriate MediaKeyStatus.
+                fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
                 if (knownKeys)
                     updateKeyStatuses(WTFMove(*knownKeys));
 
@@ -354,6 +363,7 @@ void MediaKeySession::load(const String& sessionId, Ref<DeferredPromise>&& promi
 
 void MediaKeySession::update(const BufferSource& response, Ref<DeferredPromise>&& promise)
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     // https://w3c.github.io/encrypted-media/#dom-mediakeysession-update
     // W3C Editor's Draft 09 November 2016
 
@@ -374,6 +384,7 @@ void MediaKeySession::update(const BufferSource& response, Ref<DeferredPromise>&
     // 4. Let response copy be a copy of the contents of the response parameter.
     // 5. Let promise be a new promise.
     // 6. Run the following steps in parallel:
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     m_taskQueue.enqueueTask([this, response = SharedBuffer::create(response.data(), response.length()), promise = WTFMove(promise)] () mutable {
         // 6.1. Let sanitized response be a validated and/or sanitized version of response copy.
         RefPtr<SharedBuffer> sanitizedResponse = m_implementation->sanitizeResponse(response);
@@ -389,7 +400,9 @@ void MediaKeySession::update(const BufferSource& response, Ref<DeferredPromise>&
         // 6.5. Let session closed be false.
         // 6.6. Let cdm be the CDM instance represented by this object's cdm instance value.
         // 6.7. Use the cdm to execute the following steps:
+        fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
         m_instance->updateLicense(m_sessionId, m_sessionType, *sanitizedResponse, [this, weakThis = m_weakPtrFactory.createWeakPtr(), promise = WTFMove(promise)] (bool sessionWasClosed, std::optional<CDMInstance::KeyStatusVector>&& changedKeys, std::optional<double>&& changedExpiration, std::optional<CDMInstance::Message>&& message, CDMInstance::SuccessValue succeeded) mutable {
+            fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
             if (!weakThis)
                 return;
 
@@ -426,6 +439,7 @@ void MediaKeySession::update(const BufferSource& response, Ref<DeferredPromise>&
             // 6.8. Queue a task to run the following steps:
             m_taskQueue.enqueueTask([this, sessionWasClosed, changedKeys = WTFMove(changedKeys), changedExpiration = WTFMove(changedExpiration), message = WTFMove(message), promise = WTFMove(promise)] () mutable {
                 // 6.8.1.
+                fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
                 if (sessionWasClosed) {
                     // ↳ If session closed is true:
                     //   Run the Session Closed algorithm on this object.
@@ -437,6 +451,7 @@ void MediaKeySession::update(const BufferSource& response, Ref<DeferredPromise>&
                     //              algorithm on the session, providing each known key's key ID along with the appropriate MediaKeyStatus. Should additional
                     //              processing be necessary to determine with certainty the status of a key, use "status-pending". Once the additional processing
                     //              for one or more keys has completed, run the Update Key Statuses algorithm again with the actual status(es).
+                    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
                     if (changedKeys)
                         updateKeyStatuses(WTFMove(*changedKeys));
 
@@ -525,6 +540,7 @@ void MediaKeySession::close(Ref<DeferredPromise>&& promise)
 
 void MediaKeySession::remove(Ref<DeferredPromise>&& promise)
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     // https://w3c.github.io/encrypted-media/#dom-mediakeysession-remove
     // W3C Editor's Draft 09 November 2016
 
@@ -537,13 +553,17 @@ void MediaKeySession::remove(Ref<DeferredPromise>&& promise)
 
     // 3. Let promise be a new promise.
     // 4. Run the following steps in parallel:
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     m_taskQueue.enqueueTask([this, promise = WTFMove(promise)] () mutable {
+        fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
         // 4.1. Let cdm be the CDM instance represented by this object's cdm instance value.
         // 4.2. Let message be null.
         // 4.3. Let message type be null.
 
         // 4.4. Use the cdm to execute the following steps:
+        fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
         m_instance->removeSessionData(m_sessionId, m_sessionType, [this, weakThis = m_weakPtrFactory.createWeakPtr(), promise = WTFMove(promise)] (CDMInstance::KeyStatusVector&& keys, std::optional<Ref<SharedBuffer>>&& message, CDMInstance::SuccessValue succeeded) mutable {
+            fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
             if (!weakThis)
                 return;
 
@@ -562,8 +582,10 @@ void MediaKeySession::remove(Ref<DeferredPromise>&& promise)
             // NOTE: Step 4.4.1. should be implemented in CDMInstance.
 
             // 4.5. Queue a task to run the following steps:
+            fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
             m_taskQueue.enqueueTask([this, keys = WTFMove(keys), message = WTFMove(message), succeeded, promise = WTFMove(promise)] () mutable {
                 // 4.5.1. Run the Update Key Statuses algorithm on the session, providing all key ID(s) in the session along with the "released" MediaKeyStatus value for each.
+                fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
                 updateKeyStatuses(WTFMove(keys));
 
                 // 4.5.2. Run the Update Expiration algorithm on the session, providing NaN.
@@ -616,6 +638,7 @@ void MediaKeySession::enqueueMessage(MediaKeyMessageType messageType, const Shar
 
 void MediaKeySession::updateKeyStatuses(CDMInstance::KeyStatusVector&& inputStatuses)
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     // https://w3c.github.io/encrypted-media/#update-key-statuses
     // W3C Editor's Draft 09 November 2016
 
@@ -656,10 +679,12 @@ void MediaKeySession::updateKeyStatuses(CDMInstance::KeyStatusVector&& inputStat
     m_eventQueue.enqueueEvent(Event::create(eventNames().keystatuseschangeEvent, false, false));
 
     // 6. Queue a task to run the Attempt to Resume Playback If Necessary algorithm on each of the media element(s) whose mediaKeys attribute is the MediaKeys object that created the session.
+    fprintf(stderr," %4d | %s | %p | m_keys = %p\n",__LINE__,__PRETTY_FUNCTION__,this,m_keys);
     m_taskQueue.enqueueTask([this] () mutable {
         if (m_keys)
             m_keys->attemptToResumePlaybackOnClients();
     });
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
 }
 
 void MediaKeySession::updateExpiration(double expiration)
@@ -676,6 +701,7 @@ void MediaKeySession::updateExpiration(double expiration)
 
 void MediaKeySession::sessionClosed()
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     // https://w3c.github.io/encrypted-media/#session-closed
     // W3C Editor's Draft 09 November 2016
 
@@ -700,6 +726,7 @@ void MediaKeySession::sessionClosed()
     // 6. Resolve promise.
     if (m_closedPromise)
         m_closedPromise->resolve();
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
 }
 
 bool MediaKeySession::hasPendingActivity() const

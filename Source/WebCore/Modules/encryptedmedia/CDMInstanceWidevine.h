@@ -5,6 +5,7 @@
 #if ENABLE(ENCRYPTED_MEDIA) && USE(WIDEVINE)
 
 #include "WidevineSession.h"
+#include <list>
 
 namespace WebCore {
 
@@ -28,10 +29,10 @@ public:
     void storeRecordOfKeyUsage(const String& sessionId) override;
     void gatherAvailableKeys(AvailableKeysCallback) override;
 
-    WidevineSession& wvSession() const { return *m_wvSession; }
+    std::list<WidevineSession*> &wvSessions() const { return m_wvSessions; }
 
 private:
-    std::unique_ptr<WidevineSession> m_wvSession;
+    mutable std::list<WidevineSession*> m_wvSessions;
 };
 
 } // namespace WebCore

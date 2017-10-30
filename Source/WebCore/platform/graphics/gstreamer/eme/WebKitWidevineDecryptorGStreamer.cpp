@@ -92,10 +92,11 @@ static gboolean webKitMediaWidevineDecryptorHandleKeyResponse(WebKitMediaCommonE
     if (!gst_structure_has_name(structure, label))
         return FALSE;
 
-    GST_INFO_OBJECT(self, "received %s", label);
-
     const GValue* value = gst_structure_get_value(structure, "session");
     priv->sessionMetaData = reinterpret_cast<WebCore::CDMProcessPayloadBase*>(g_value_get_pointer(value));
+
+    GST_INFO_OBJECT(self, "received %s, %p", label, priv->sessionMetaData);
+
     return TRUE;
 }
 

@@ -46,12 +46,15 @@ MediaKeys::MediaKeys(bool useDistinctiveIdentifier, bool persistentStateAllowed,
     , m_implementation(WTFMove(implementation))
     , m_instance(WTFMove(instance))
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
 }
 
 MediaKeys::~MediaKeys()
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     for (auto& session : m_sessions)
         session->detachKeys();
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
 }
 
 ExceptionOr<Ref<MediaKeySession>> MediaKeys::createSession(ScriptExecutionContext& context, MediaKeySessionType sessionType)
@@ -130,8 +133,10 @@ void MediaKeys::detachCDMClient(CDMClient& client)
 
 void MediaKeys::attemptToResumePlaybackOnClients()
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     for (auto* cdmClient : m_cdmClients)
         cdmClient->cdmClientAttemptToResumePlaybackIfNecessary();
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
 }
 
 #if USE(OCDM)

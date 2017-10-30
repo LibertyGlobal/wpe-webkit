@@ -213,11 +213,12 @@ bool PlayreadySession::playreadyProcessKey(Uint8Array* key, RefPtr<Uint8Array>& 
         GST_DEBUG(" ");
 
         ChkDRM(DRM_Prdy_Reader_Bind(drmContext, &pDecryptContext));
-//         m_key = key->buffer();
+
+        //         m_key = key->buffer();
         m_key = ArrayBuffer::create(key->data(), key->byteLength());
         errorCode = 0;
         m_eKeyState = KEY_READY;
-        GST_DEBUG("key processed, now ready for content decryption");
+        GST_DEBUG("key processed, now ready for content decryption, %p",static_cast<CDMProcessPayloadBase*>(this));
         systemCode = dr;
         return true;
     }
@@ -229,12 +230,28 @@ bool PlayreadySession::playreadyProcessKey(Uint8Array* key, RefPtr<Uint8Array>& 
     return false;
 }
 
-int PlayreadySession::processPayload(const void* iv, uint32_t ivSize, const void */*kid*/, uint32_t /*kidSize*/, void* payloadData, uint32_t payloadDataSize, void** decrypted)
+static inline char code16( char a ) {
+    return a >= 10 ? ( a + 'a' - 10 ) : ( a + '0' );
+}
+static inline char *stringify( const char *data, size_t length ) {
+    static char buf[ 256 ];
+    memset( buf, 0, 256 );
+    if( length > 127 )
+        length = 127;
+    for( size_t i = 0; i < length; ++i ) {
+        buf[ 2 * i ]        = code16( (data[ i ] & 0xf0) >> 4 );
+        buf[ 2 * i + 1 ]    = code16( (data[ i ] & 0x0f) );
+    }
+    return buf;
+}
+
+int PlayreadySession::processPayload(const void* iv, uint32_t ivSize, const void *kid, uint32_t kidSize, void* payloadData, uint32_t payloadDataSize, void** decrypted)
 {
     DRM_Prdy_Error_e dr = DRM_Prdy_ok;
     uint8_t *nexus_heap = NULL;
 
-    GST_DEBUG("payloadData=%p, size=%d", payloadData, payloadDataSize);
+    GST_DEBUG("payloadData=%p, size=%d, %s", payloadData, payloadDataSize,stringify(reinterpret_cast<const char*>(&(pDecryptContext.pKeyContext)),sizeof(pDecryptContext.pKeyContext)) );
+    GST_DEBUG("payloadData=%p, size=%d, %s", payloadData, payloadDataSize,stringify(reinterpret_cast<const char*>(kid),kidSize));
     do
     {
         DRM_Prdy_AES_CTR_Info_t     aesCtrInfo;

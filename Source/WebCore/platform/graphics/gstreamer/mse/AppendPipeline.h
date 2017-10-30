@@ -92,6 +92,12 @@ public:
 
     void setPendingCDMSession( void* );
 
+#if ENABLE(ENCRYPTED_MEDIA)
+    void bindInitData( const Vector<uint8_t> &lastInitData );
+    bool testInitData( const Vector<uint8_t> &initData );
+    bool avaitingInitData() const;
+#endif
+
 private:
     void resetPipeline();
     void checkEndOfAppend();
@@ -162,6 +168,9 @@ private:
 #endif
     bool m_webm;
     void *m_pendingCDMSession;
+#if ENABLE(ENCRYPTED_MEDIA)
+    Vector<uint8_t> m_initData;
+#endif
 };
 
 } // namespace WebCore.

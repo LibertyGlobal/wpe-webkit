@@ -620,7 +620,9 @@ void MediaPlayer::keyAdded()
 #if ENABLE(ENCRYPTED_MEDIA)
 void MediaPlayer::attemptToDecryptWithInstance(const CDMInstance& instance)
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     m_private->attemptToDecryptWithInstance(instance);
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
 }
 
 #if USE(OCDM)

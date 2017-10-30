@@ -192,10 +192,10 @@ static void clearFlags(unsigned& value, unsigned flags)
 #undef LOG_DISABLED
 #endif
 
-// #define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
-// #define LOG_DISABLED 0
-#define LOG( x, s... )  ({ })
-#define LOG_DISABLED 1
+#define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
+#define LOG_DISABLED 0
+// #define LOG( x, s... )  ({ })
+// #define LOG_DISABLED 1
 
 #if !LOG_DISABLED
 static String urlForLoggingMedia(const URL& url)
@@ -2737,6 +2737,7 @@ bool HTMLMediaElement::mediaPlayerInitializationDataEncountered(const String& in
 
 void HTMLMediaElement::cdmClientAttemptToResumePlaybackIfNecessary()
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     // https://w3c.github.io/encrypted-media/#resume-playback
     // W3C Editor's Draft 09 November 2016
 
@@ -2752,12 +2753,15 @@ void HTMLMediaElement::cdmClientAttemptToResumePlaybackIfNecessary()
     //   4.2. Set the media element's playback blocked waiting for key value to false.
     //   4.3. Set the media element's readyState value to HAVE_CURRENT_DATA, HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA as appropriate.
     // FIXME: ^
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
 }
 
 void HTMLMediaElement::cdmClientAttemptToDecryptWithInstance(const CDMInstance& instance)
 {
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
     if (m_player)
         m_player->attemptToDecryptWithInstance(instance);
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
 }
 
 #if USE(OCDM)

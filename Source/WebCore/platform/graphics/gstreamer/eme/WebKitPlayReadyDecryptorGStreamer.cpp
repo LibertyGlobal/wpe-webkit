@@ -106,10 +106,11 @@ static gboolean webKitMediaPlayReadyDecryptorHandleKeyResponse(WebKitMediaCommon
     if (!gst_structure_has_name(structure, label))
         return FALSE;
 
-    GST_INFO_OBJECT(self, "received %s", label);
-
     const GValue* value = gst_structure_get_value(structure, "session");
     priv->sessionMetaData = reinterpret_cast<WebCore::CDMProcessPayloadBase*>(g_value_get_pointer(value));
+
+    GST_INFO_OBJECT(self, "received %s, %p", label, priv->sessionMetaData);
+
     return TRUE;
 }
 
@@ -135,10 +136,10 @@ static gboolean webKitMediaPlayReadyDecryptorHandleKeyResponse(WebKitMediaCommon
 //         GST_ERROR("no name " GST_SVP_SYSTEM_ID_CAPS_FIELD);
 // }
 
-static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryptionDecrypt* self, GstBuffer* ivBuffer, GstBuffer* /*kid*/, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer)
+static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryptionDecrypt* self, GstBuffer* ivBuffer, GstBuffer* kid, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer)
 {
     WebKitMediaPlayReadyDecryptPrivate* priv = WEBKIT_MEDIA_PLAYREADY_DECRYPT_GET_PRIVATE(WEBKIT_MEDIA_PLAYREADY_DECRYPT(self));
-    GstMapInfo map, ivMap, subSamplesMap;
+    GstMapInfo map, ivMap, subSamplesMap, kidMap;
     unsigned position = 0;
     GstByteReader* reader = nullptr;
     gboolean bufferMapped, subsamplesBufferMapped;
@@ -159,11 +160,19 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
         return false;
     }
 
+    if (!gst_buffer_map(kid, &kidMap, GST_MAP_READ))
+    {
+        GST_ERROR_OBJECT(self, "Failed to map kid");
+        gst_buffer_unmap(ivBuffer, &ivMap);
+        return false;
+    }
+
     bufferMapped = gst_buffer_map(buffer, &map, static_cast<GstMapFlags>(GST_MAP_READWRITE));
     if (!bufferMapped)
     {
         GST_ERROR_OBJECT(self, "Failed to map buffer");
         gst_buffer_unmap(ivBuffer, &ivMap);
+        gst_buffer_unmap(kid, &kidMap);
         return false;
     }
 
@@ -176,6 +185,7 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
         {
             GST_ERROR_OBJECT(self, "Failed to map subsample buffer");
             gst_buffer_unmap(ivBuffer, &ivMap);
+            gst_buffer_unmap(kid, &kidMap);
             gst_buffer_unmap(buffer, &map);
             return false;
         }
@@ -210,7 +220,7 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
 
         // Decrypt cipher.
         ASSERT(priv->sessionMetaData);
-        if ((errorCode = priv->sessionMetaData->processPayload(static_cast<const void*>(ivMap.data), static_cast<uint32_t>(ivMap.size), NULL, 0, static_cast<void*>(fEncryptedData), static_cast<uint32_t>(totalEncrypted), &decrypted)))
+        if ((errorCode = priv->sessionMetaData->processPayload(static_cast<const void*>(ivMap.data), static_cast<uint32_t>(ivMap.size), static_cast<const void*>(kidMap.data), static_cast<uint32_t>(kidMap.size), static_cast<void*>(fEncryptedData), static_cast<uint32_t>(totalEncrypted), &decrypted)))
         {
             GST_WARNING_OBJECT(self, "ERROR - packet decryption failed [%d]", errorCode);
             g_free(fEncryptedData);
@@ -219,6 +229,7 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
             gst_buffer_unmap(buffer, &map);
             gst_buffer_unmap(subSamplesBuffer, &subSamplesMap);
             gst_buffer_unmap(ivBuffer, &ivMap);
+            gst_buffer_unmap(kid, &kidMap);
             return false;
         }
         g_free(fEncryptedData);
@@ -238,13 +249,14 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
 
         // Decrypt cipher.
 //        ASSERT(priv->sessionMetaData);
-        if ((errorCode = priv->sessionMetaData->processPayload(static_cast<const void*>(ivMap.data), static_cast<uint32_t>(ivMap.size), NULL, 0, static_cast<void*>(map.data), static_cast<uint32_t>(map.size), &decrypted)))
+        if ((errorCode = priv->sessionMetaData->processPayload(static_cast<const void*>(ivMap.data), static_cast<uint32_t>(ivMap.size), static_cast<const void*>(kidMap.data), static_cast<uint32_t>(kidMap.size), static_cast<void*>(map.data), static_cast<uint32_t>(map.size), &decrypted)))
         {
             GST_WARNING_OBJECT(self, "ERROR - packet decryption failed [%d]", errorCode);
             g_free(fEncryptedData);
             g_free(svpSubsamplesBuffer);
             gst_buffer_unmap(buffer, &map);
             gst_buffer_unmap(ivBuffer, &ivMap);
+            gst_buffer_unmap(kid, &kidMap);
             return false;
         }
     }
@@ -273,6 +285,7 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
 
     gst_buffer_unmap(buffer, &map);
     gst_buffer_unmap(ivBuffer, &ivMap);
+    gst_buffer_unmap(kid, &kidMap);
 
     return true;
 }

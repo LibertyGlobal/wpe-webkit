@@ -40,6 +40,8 @@
 #include "TextureMapperPlatformLayerProxy.h"
 #endif
 
+#include <list>
+
 typedef struct _GstStreamVolume GstStreamVolume;
 typedef struct _GstVideoInfo GstVideoInfo;
 typedef struct _GstGLContext GstGLContext;
@@ -148,6 +150,7 @@ public:
 
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)
     virtual void dispatchDecryptionKey(GstBuffer*);
+    virtual void bindInitData( const Vector<uint8_t> &lastInitData );
     void handleProtectionEvent(GstEvent*, GstElement*);
     void receivedGenerateKeyRequest(const String& = String());
     void abortEncryptionSetup();
@@ -346,7 +349,7 @@ private:
 
     bool m_pendingSizeSet;
 #if ENABLE(ENCRYPTED_MEDIA)
-    void *m_pendingCDMSession;
+    std::list<void *> m_pendingCDMSessions;
 #endif
 };
 

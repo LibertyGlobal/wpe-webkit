@@ -296,7 +296,12 @@ void AppendPipeline::handleNeedContextSyncMessage(GstMessage* message)
     GST_TRACE("context type: %s", contextType);
     if (!g_strcmp0(contextType, "drm-preferred-decryption-system-id")
         && m_appendState != AppendPipeline::AppendState::KeyNegotiation)
+    {
         setAppendState(AppendPipeline::AppendState::KeyNegotiation);
+#if ENABLE(ENCRYPTED_MEDIA)
+        m_initData.clear();
+#endif
+    }
 
     // MediaPlayerPrivateGStreamerBase will take care of setting up encryption.
     if (m_playerPrivate)
@@ -667,14 +672,35 @@ void AppendPipeline::parseDemuxerSrcPadCaps(GstCaps* demuxerSrcPadCaps)
     }
 }
 
+#if ENABLE(ENCRYPTED_MEDIA)
+void AppendPipeline::bindInitData( const Vector<uint8_t> &lastInitData )
+{
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
+    m_initData = lastInitData;
+}
+
+bool AppendPipeline::testInitData( const Vector<uint8_t> &initData )
+{
+    return m_initData == initData;
+}
+
+bool AppendPipeline::avaitingInitData() const
+{
+    return ( m_appendState == AppendState::KeyNegotiation ) && m_initData.isEmpty();
+}
+#endif
+
 void AppendPipeline::setPendingCDMSession( void *pendingCDMSession )
 {
+    fprintf(stderr," %4d | %s | %p, %p\n",__LINE__,__PRETTY_FUNCTION__,this,pendingCDMSession);
     m_pendingCDMSession = pendingCDMSession;
 }
 
 void AppendPipeline::appsinkCapsChanged()
 {
     ASSERT(WTF::isMainThread());
+
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
 
     if (!m_appsink)
         return;
@@ -688,6 +714,7 @@ void AppendPipeline::appsinkCapsChanged()
     // This means that we're right after a new track has appeared. Otherwise, it's a caps change inside the same track.
     bool previousCapsWereNull = !m_appsinkCaps;
 
+    fprintf(stderr," %4d | %s | %p\n",__LINE__,__PRETTY_FUNCTION__,this);
 
     if (previousCapsWereNull || !gst_caps_is_equal(m_appsinkCaps.get(), caps.get())) {
         m_appsinkCaps = WTFMove(caps);
@@ -811,8 +838,8 @@ void AppendPipeline::didReceiveInitializationSegment()
 
     WebCore::SourceBufferPrivateClient::InitializationSegment initializationSegment;
 
-    GST_DEBUG("Notifying SourceBuffer for track %s", (m_track) ? m_track->id().string().utf8().data() : nullptr);
     initializationSegment.duration = m_mediaSourceClient->duration();
+    GST_DEBUG("Notifying SourceBuffer for track %s, %lf", (m_track) ? m_track->id().string().utf8().data() : nullptr,initializationSegment.duration.toDouble());
 
     switch (m_streamType) {
     case Audio: {
@@ -915,6 +942,19 @@ void AppendPipeline::abort()
 GstFlowReturn AppendPipeline::pushNewBuffer(GstBuffer* buffer)
 {
     GstFlowReturn result;
+
+//     if( m_streamType == WebCore::MediaSourceStreamTypeGStreamer::Audio ) {
+//         m_playerPrivate->trackDetected(this, m_oldTrack, m_track);
+//         didReceiveInitializationSegment();
+//         setAppendState(AppendPipeline::AppendState::Ongoing);
+//         for( int i = 0; i < 50*300; ++i ) {
+//             RefPtr<GStreamerMediaSample> mediaSample = WebCore::GStreamerMediaSample::createFakeSample(NULL, MediaTime::createWithDouble(0.02*i), MediaTime::createWithDouble(0.02*i), MediaTime::createWithDouble(0.02), FloatSize(), trackId());
+//             m_sourceBufferPrivate->didReceiveSample(*mediaSample);
+//             setAppendState(AppendState::Sampling);
+//         }
+//         setAppendState(AppendState::LastSample);
+//         return GST_FLOW_OK;
+//     }
 
     if (m_abortPending) {
         m_pendingBuffer = adoptGRef(buffer);

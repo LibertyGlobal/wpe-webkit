@@ -886,6 +886,10 @@ bool MediaSource::isTypeSupported(const String& type)
     if (!ok)
         framerate = 0;
 
+    String cryptoblockformat = contentType.parameter("cryptoblockformat");
+    if( !cryptoblockformat.isEmpty() && cryptoblockformat != "subsample" )
+        return false;
+
     // 3. If type contains a media type or media subtype that the MediaSource does not support, then return false.
     // 4. If type contains at a codec that the MediaSource does not support, then return false.
     // 5. If the MediaSource does not support the specified combination of media type, media subtype, and codecs then return false.
