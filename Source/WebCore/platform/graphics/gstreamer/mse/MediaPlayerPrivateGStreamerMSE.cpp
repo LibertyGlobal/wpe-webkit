@@ -765,11 +765,14 @@ void MediaPlayerPrivateGStreamerMSE::trackDetected(RefPtr<AppendPipeline> append
 bool MediaPlayerPrivateGStreamerMSE::supportsCodecs(const String& codecs)
 {
     static Vector<const char*> supportedCodecs = { "avc*", "mp4a*", "mpeg", "x-h264", "vp9", "x-vp9", "opus", "x-opus" };
+    static Vector<const char*> unsupportedCodecs = { "vp9.2" };	// subfilter the codecs here!
     Vector<String> codecEntries;
     codecs.split(',', false, codecEntries);
 
     for (String codec : codecEntries) {
+//         fprintf(stderr," CODEC: %s\n", codec.utf8().data());
         bool isCodecSupported = false;
+        bool isCodecUnsupported = false;
 
         // If the codec is named like a mimetype (eg: video/avc) remove the "video/" part.
         size_t slashIndex = codec.find('/');
@@ -777,6 +780,13 @@ bool MediaPlayerPrivateGStreamerMSE::supportsCodecs(const String& codecs)
             codec = codec.substring(slashIndex+1);
 
         const char* codecData = codec.utf8().data();
+        for (const auto& pattern : unsupportedCodecs) {
+            isCodecUnsupported = !fnmatch(pattern, codecData, 0);
+            if (isCodecUnsupported)
+                break;
+        }
+        if (isCodecUnsupported)
+            return false;
         for (const auto& pattern : supportedCodecs) {
             isCodecSupported = !fnmatch(pattern, codecData, 0);
             if (isCodecSupported)
@@ -856,40 +866,140 @@ void MediaPlayerPrivateGStreamerMSE::emitPlayReadySession(PlayreadySession* sess
 #if ENABLE(ENCRYPTED_MEDIA)
 void MediaPlayerPrivateGStreamerMSE::attemptToDecryptWithInstance(const CDMInstance& baseInstance)
 {
+    fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s >\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
 #if USE(PLAYREADY)
     if( baseInstance.implementationType() == CDMInstance::ImplementationType::PlayReady )
     {
-        receivedGenerateKeyRequest(PLAYREADY_PROTECTION_SYSTEM_ID);
+        fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
         auto& instancepr = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
-        auto sessionpr = &(instancepr.prSession());
-
-        if (sessionpr->ready())
+        std::list<PlayreadySession*> &sessionpr = instancepr.prSessions();
+        std::list<PlayreadySession*>::iterator pr = sessionpr.begin();
+        int count = 0;
+        if( pr == sessionpr.end() )
+            return;
+        while( pr != sessionpr.end() ) {
+            if( !(*pr)->ready() )
+                return;
+            ++pr;
+            count++;
+        }
+        pr = sessionpr.begin();
+        fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+        /*if( count == 1 ) {
+            receivedGenerateKeyRequest(PLAYREADY_PROTECTION_SYSTEM_ID);
             for (auto it : m_appendPipelinesMap)
             {
-                it.value->setPendingCDMSession( static_cast<CDMProcessPayloadBase*>(sessionpr) );
-//                 gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-//                                                                                   gst_structure_new("playready-session", "session", G_TYPE_POINTER, sessionpr, nullptr)));
+                fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s @@@\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+                it.value->protectionCondition().notifyOne();
+                it.value->addPendingCDMSession( static_cast<CDMProcessPayloadBase*>(*pr) );
                 it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
             }
+        } else*/ {
+            fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+            receivedGenerateKeyRequest(PLAYREADY_PROTECTION_SYSTEM_ID);
+            LockHolder lock(m_protectionMutex);
+            for (auto it : m_appendPipelinesMap)
+            {
+                fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+                for( pr : sessionpr )
+                {
+                    if( it.value->testInitData( pr->initData() ) )
+                    {
+                        fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s !!!\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+                        it.value->addPendingCDMSession( static_cast<CDMProcessPayloadBase*>(&*pr) );
+                        it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
+                        it.value->protectionCondition().notifyOne();
+                    }
+                    else
+                    {
+                        fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s ...\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+                    }
+                }
+            }
+        }
     }
 #endif
 #if USE(WIDEVINE)
     if( baseInstance.implementationType() == CDMInstance::ImplementationType::Widevine )
     {
-        receivedGenerateKeyRequest(WIDEVINE_PROTECTION_SYSTEM_ID);
+        fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
         auto& instancewv = reinterpret_cast<const CDMInstanceWidevine&>(baseInstance);
-        auto sessionwv = &(instancewv.wvSession());
-
-        if (sessionwv->ready())
+        std::list<WidevineSession*> &sessionwv = instancewv.wvSessions();
+        std::list<WidevineSession*>::iterator wv = sessionwv.begin();
+        int count = 0;
+        if( wv == sessionwv.end() )
+            return;
+        while( wv != sessionwv.end() ) {
+            if( !(*wv)->ready() )
+                return;
+            ++wv;
+            count++;
+        }
+        wv = sessionwv.begin();
+        fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+        /*if( count == 1 ) {
+            fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+            receivedGenerateKeyRequest(WIDEVINE_PROTECTION_SYSTEM_ID);
+            if ((*wv)->ready()) {
+                for (auto it : m_appendPipelinesMap)
+                {
+                    fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s @@@\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+                    it.value->protectionCondition().notifyOne();
+                    it.value->addPendingCDMSession( static_cast<CDMProcessPayloadBase*>(*wv) );
+                    it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
+                }
+            }
+        } else*/ {
+            fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+            receivedGenerateKeyRequest(WIDEVINE_PROTECTION_SYSTEM_ID);
+            LockHolder lock(m_protectionMutex);
             for (auto it : m_appendPipelinesMap)
             {
-                it.value->setPendingCDMSession( static_cast<CDMProcessPayloadBase*>(sessionwv) );
-//                 gst_element_send_event(it.value->pipeline(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-//                                                                                   gst_structure_new("widevine-session", "session", G_TYPE_POINTER, sessionwv, nullptr)));
-                it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
+                fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+                for( wv : sessionwv )
+                {
+                    if( it.value->testInitData( wv->initData() ) )
+                    {
+                        fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s !!!\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+                        it.value->addPendingCDMSession( static_cast<CDMProcessPayloadBase*>(&*wv) );
+                        it.value->setAppendState(AppendPipeline::AppendState::Ongoing);
+                        it.value->protectionCondition().notifyOne();
+                    }
+                    else
+                    {
+                        fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s ...\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+                    }
+                }
             }
+        }
     }
 #endif
+    fprintf(stderr," %4d | %p | %p | MediaPlayerPrivateGStreamerMSE::%s <\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+}
+
+bool MediaPlayerPrivateGStreamerMSE::bindInitData( const Vector<uint8_t> &lastInitData )
+{
+    bool ret = false;
+    for (auto it : m_appendPipelinesMap) {
+        AppendPipeline::BoundState bs = it.value->bindInitData( lastInitData );
+        if( bs == AppendPipeline::BoundState::Bound ) {
+            break;
+        } else if( bs == AppendPipeline::BoundState::PreviouslyBound ) {
+            ret = true;
+            break;
+        }
+    }
+    return ret;
+}
+
+Condition &MediaPlayerPrivateGStreamerMSE::protectionCondition()
+{
+    for (auto it : m_appendPipelinesMap) {
+        if( it.value->currentAppendPipeline() ) {
+            return it.value->protectionCondition();
+        }
+    }
+    return MediaPlayerPrivateGStreamerBase::protectionCondition();
 }
 #endif
 

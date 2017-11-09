@@ -89,6 +89,8 @@ public:
 
 #if ENABLE(ENCRYPTED_MEDIA)
     void attemptToDecryptWithInstance(const CDMInstance&) override;
+    bool bindInitData( const Vector<uint8_t> &lastInitData ) override;
+    Condition &protectionCondition() override;
 #endif
 
     void trackDetected(RefPtr<AppendPipeline>, RefPtr<WebCore::TrackPrivateBase> oldTrack, RefPtr<WebCore::TrackPrivateBase> newTrack);

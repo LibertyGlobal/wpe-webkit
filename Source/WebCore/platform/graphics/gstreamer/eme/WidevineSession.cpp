@@ -41,6 +41,7 @@ WidevineSession::WidevineSession(const Vector<uint8_t> &initData, const void* pi
     , m_initType(widevine::Cdm::kWebM)
     , m_offset(0)
 {
+    fprintf(stderr," %4d | %p | %p | WidevineSession::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     std::string sessionId;
     if( getWidevineCDM()->createSession( widevine::Cdm::kTemporary, &sessionId ) != widevine::Cdm::kSuccess ) {
         m_eKeyState = KEY_ERROR;
@@ -50,6 +51,7 @@ WidevineSession::WidevineSession(const Vector<uint8_t> &initData, const void* pi
 }
 
 WidevineSession::~WidevineSession() {
+    fprintf(stderr," %4d | %p | %p | WidevineSession::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     getWidevineCDM()->close( m_sessionId.utf8().data() );
 }
 
@@ -208,12 +210,11 @@ int WidevineSession::processPayload(const void* iv, uint32_t ivSize, const void 
     return 1;
 }
 
-// void WidevineSession::freeDecrypted(void* decrypted)
-// {
-//     GST_DEBUG("%p", decrypted);
-//     SRAI_Memory_Free((uint8_t *)decrypted);
-// }
-
+void WidevineSession::freeDecrypted(void* decrypted)
+{
+    GST_DEBUG("%p", decrypted);
+    SRAI_Memory_Free((uint8_t *)decrypted);
+}
 
 }
 

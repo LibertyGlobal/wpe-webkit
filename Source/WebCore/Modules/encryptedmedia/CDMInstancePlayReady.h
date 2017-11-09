@@ -5,6 +5,7 @@
 #if ENABLE(ENCRYPTED_MEDIA) && USE(PLAYREADY)
 
 #include "PlayreadySession.h"
+#include <list>
 
 namespace WebCore {
 
@@ -28,10 +29,10 @@ public:
     void storeRecordOfKeyUsage(const String& sessionId) override;
     void gatherAvailableKeys(AvailableKeysCallback) override;
 
-    PlayreadySession& prSession() const { return *m_prSession; }
+    std::list<PlayreadySession*> &prSessions() const { return m_prSessions; }
 
 private:
-    std::unique_ptr<PlayreadySession> m_prSession;
+    mutable std::list<PlayreadySession*> m_prSessions;
 };
 
 } // namespace WebCore

@@ -40,6 +40,8 @@
 #include "TextureMapperPlatformLayerProxy.h"
 #endif
 
+#include <list>
+
 typedef struct _GstStreamVolume GstStreamVolume;
 typedef struct _GstVideoInfo GstVideoInfo;
 typedef struct _GstGLContext GstGLContext;
@@ -148,6 +150,8 @@ public:
 
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)
     virtual void dispatchDecryptionKey(GstBuffer*);
+    virtual bool bindInitData( const Vector<uint8_t> &lastInitData );
+    virtual Condition &protectionCondition();
     void handleProtectionEvent(GstEvent*, GstElement*);
     void receivedGenerateKeyRequest(const String& = String());
     void abortEncryptionSetup();
@@ -192,6 +196,8 @@ public:
 
     virtual bool handleSyncMessage(GstMessage*);
 
+    void setNaturalSize( FloatSize naturalSize ) { m_videoSize = naturalSize; }
+
 protected:
     MediaPlayerPrivateGStreamerBase(MediaPlayer*);
 
@@ -230,9 +236,11 @@ protected:
 
     void notifyPlayerOfVolumeChange();
     void notifyPlayerOfMute();
+    void notifyPlayerOfVideoCaps();
 
     static void volumeChangedCallback(MediaPlayerPrivateGStreamerBase*);
     static void muteChangedCallback(MediaPlayerPrivateGStreamerBase*);
+    static void videoSinkCapsChangedCallback(MediaPlayerPrivateGStreamerBase*);
 
     enum MainThreadNotification {
         VideoChanged = 1 << 0,
@@ -291,6 +299,10 @@ protected:
     void postPendingCDMSession();
 #endif
 
+#if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)
+    Lock m_protectionMutex;
+#endif
+
 private:
     WeakPtr<MediaPlayerPrivateGStreamerBase> createWeakPtr() { return m_weakPtrFactory.createWeakPtr(); }
 
@@ -326,7 +338,6 @@ private:
 #endif
 
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA)
-    Lock m_protectionMutex;
     Condition m_protectionCondition;
     String m_lastGenerateKeyRequestKeySystemUuid;
     HashSet<uint32_t> m_handledProtectionEvents;
@@ -345,8 +356,9 @@ private:
     WeakPtrFactory<MediaPlayerPrivateGStreamerBase> m_weakPtrFactory;
 
     bool m_pendingSizeSet;
+    bool m_videoSinkRealized;
 #if ENABLE(ENCRYPTED_MEDIA)
-    void *m_pendingCDMSession;
+    std::list<void *> m_pendingCDMSessions;
 #endif
 };
 

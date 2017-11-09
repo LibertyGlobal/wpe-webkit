@@ -60,10 +60,10 @@ namespace WebCore {
 #undef LOG_DISABLED
 #endif
 
-// #define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
-// #define LOG_DISABLED 0
-#define LOG( x, s... )  ({ })
-#define LOG_DISABLED 1
+#define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
+#define LOG_DISABLED 0
+// #define LOG( x, s... )  ({ })
+// #define LOG_DISABLED 1
 
 #if !LOG_DISABLED
 static const char* toString(MediaSource::ReadyState readyState)
@@ -885,6 +885,10 @@ bool MediaSource::isTypeSupported(const String& type)
     float framerate = contentType.parameter("framerate").toFloat(&ok);
     if (!ok)
         framerate = 0;
+
+    String cryptoblockformat = contentType.parameter("cryptoblockformat");
+    if( !cryptoblockformat.isEmpty() && cryptoblockformat != "subsample" )
+        return false;
 
     // 3. If type contains a media type or media subtype that the MediaSource does not support, then return false.
     // 4. If type contains at a codec that the MediaSource does not support, then return false.

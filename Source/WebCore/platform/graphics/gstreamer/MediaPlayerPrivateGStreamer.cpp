@@ -378,7 +378,7 @@ double MediaPlayerPrivateGStreamer::playbackPosition() const
     // report either the seek time or the duration because this is
     // what the Media element spec expects us to do.
         if (m_seeking)
-        return m_seekTime;
+            return m_seekTime;
 
         MediaTime mediaDuration = durationMediaTime();
         if (mediaDuration)
@@ -829,17 +829,6 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfVideo()
     m_player->client().mediaPlayerEngineUpdated(m_player);
 }
 
-void MediaPlayerPrivateGStreamer::videoSinkCapsChangedCallback(MediaPlayerPrivateGStreamer* player)
-{
-    player->m_notifier.notify(MainThreadNotification::VideoCapsChanged, [player] { player->notifyPlayerOfVideoCaps(); });
-}
-
-void MediaPlayerPrivateGStreamer::notifyPlayerOfVideoCaps()
-{
-    m_videoSize = IntSize();
-    m_player->client().mediaPlayerEngineUpdated(m_player);
-}
-
 void MediaPlayerPrivateGStreamer::audioChangedCallback(MediaPlayerPrivateGStreamer* player)
 {
     player->m_notifier.notify(MainThreadNotification::AudioChanged, [player] { player->notifyPlayerOfAudio(); });
@@ -983,9 +972,6 @@ void MediaPlayerPrivateGStreamer::setRate(float rate)
     // Higher rate causes crash.
     rate = clampTo(rate, -20.0, 20.0);
 
-    if( rate > 0 && rate < 1.0 )
-        rate = 1.0;
-
     // Avoid useless playback rate update.
     if (m_playbackRate == rate) {
         // and make sure that upper layers were notified if rate was set
@@ -1099,7 +1085,7 @@ void MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
     // We ignore state changes from internal elements. They are forwarded to playbin2 anyway.
     bool messageSourceIsPlaybin = GST_MESSAGE_SRC(message) == reinterpret_cast<GstObject*>(m_pipeline.get());
 
-    GST_TRACE("Message %s received from element %s", GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_SRC_NAME(message));
+//     GST_TRACE("Message %s received from element %s", GST_MESSAGE_TYPE_NAME(message), GST_MESSAGE_SRC_NAME(message));
     switch (GST_MESSAGE_TYPE(message)) {
     case GST_MESSAGE_ERROR:
 #if USE(OCDM) && (ENABLE(LEGACY_ENCRYPTED_MEDIA_V1) || ENABLE(LEGACY_ENCRYPTED_MEDIA))
@@ -1297,8 +1283,8 @@ void MediaPlayerPrivateGStreamer::handleMessage(GstMessage* message)
         break;
     }
     default:
-        GST_DEBUG("Unhandled GStreamer message type: %s",
-                    GST_MESSAGE_TYPE_NAME(message));
+//         GST_DEBUG("Unhandled GStreamer message type: %s",
+//                     GST_MESSAGE_TYPE_NAME(message));
         break;
     }
     return;
@@ -2335,6 +2321,11 @@ AudioSourceProvider* MediaPlayerPrivateGStreamer::audioSourceProvider()
 void MediaPlayerPrivateGStreamer::createGSTPlayBin()
 {
     ASSERT(!m_pipeline);
+
+    if(isMediaSource())
+        setenv("GST_BRCM_VF_DISABLE_CHAIN_WORKAROUND","1",1);
+    else
+        unsetenv("GST_BRCM_VF_DISABLE_CHAIN_WORKAROUND");
 
     // gst_element_factory_make() returns a floating reference so
     // we should not adopt.

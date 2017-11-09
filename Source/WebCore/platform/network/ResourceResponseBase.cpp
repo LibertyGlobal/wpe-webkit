@@ -110,6 +110,18 @@ ResourceResponse ResourceResponseBase::fromCrossThreadData(CrossThreadData&& dat
     return response;
 }
 
+static char *_timestamp() {
+    static char _buf[64] = { 0 };
+    time_t _t= time(NULL);
+    ctime_r( &_t, _buf );
+    char *p = strchr(_buf,'\n');
+    if(p)
+        *p = 0;
+    return _buf;
+}
+
+#define fprintf(s...) 0
+
 ResourceResponse ResourceResponseBase::filterResponse(const ResourceResponse& response, ResourceResponse::Tainting tainting)
 {
     if (tainting == ResourceResponse::Tainting::Opaque) {
@@ -117,6 +129,12 @@ ResourceResponse ResourceResponseBase::filterResponse(const ResourceResponse& re
         opaqueResponse.setType(ResourceResponse::Type::Opaque);
         return opaqueResponse;
     }
+
+    fprintf(stderr," %4d | %s | ResourceResponseBase::%s() %s\n",__LINE__,_timestamp(),__FUNCTION__,response.m_url.string().utf8().data());
+    if (!response.m_httpHeaderFields.isEmpty())
+        for( HTTPHeaderMap::const_iterator it = response.m_httpHeaderFields.begin(); it != response.m_httpHeaderFields.end(); ++it ) {
+            fprintf(stderr,"%s: %s\n",it->key.utf8().data(),it->value.utf8().data());
+        }
 
     ResourceResponse filteredResponse = response;
     // Let's initialize filteredResponse to remove some header fields.

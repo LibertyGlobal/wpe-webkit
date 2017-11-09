@@ -311,6 +311,12 @@ int PlayreadySession::processPayload(const void* iv, uint32_t ivSize, const void
     return 1;
 }
 
+void PlayreadySession::freeDecrypted( void *decrypted )
+{
+    GST_DEBUG("%p", decrypted);
+    SRAI_Memory_Free((uint8_t *)decrypted);
+}
+
 }
 
 #endif

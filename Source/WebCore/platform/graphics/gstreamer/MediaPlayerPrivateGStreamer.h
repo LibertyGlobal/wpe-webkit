@@ -200,7 +200,6 @@ protected:
     void readyTimerFired();
 
     void notifyPlayerOfVideo();
-    void notifyPlayerOfVideoCaps();
     void notifyPlayerOfAudio();
 
 #if ENABLE(VIDEO_TRACK)
@@ -217,7 +216,6 @@ protected:
 
     static void sourceChangedCallback(MediaPlayerPrivateGStreamer*);
     static void videoChangedCallback(MediaPlayerPrivateGStreamer*);
-    static void videoSinkCapsChangedCallback(MediaPlayerPrivateGStreamer*);
     static void audioChangedCallback(MediaPlayerPrivateGStreamer*);
 #if ENABLE(VIDEO_TRACK)
     static void textChangedCallback(MediaPlayerPrivateGStreamer*);

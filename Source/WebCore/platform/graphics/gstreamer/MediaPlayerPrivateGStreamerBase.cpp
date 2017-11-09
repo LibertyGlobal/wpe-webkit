@@ -285,9 +285,7 @@ MediaPlayerPrivateGStreamerBase::MediaPlayerPrivateGStreamerBase(MediaPlayer* pl
 #endif
     , m_weakPtrFactory(this)
     , m_pendingSizeSet( false )
-#if ENABLE(ENCRYPTED_MEDIA)
-    , m_pendingCDMSession( nullptr )
-#endif
+    , m_videoSinkRealized( false )
 {
     g_mutex_init(&m_sampleMutex);
 #if USE(COORDINATED_GRAPHICS_THREADED)
@@ -447,6 +445,11 @@ bool MediaPlayerPrivateGStreamerBase::handleSyncMessage(GstMessage* message)
 #endif
 
         for (auto& event : streamEncryptionInformation.first) {
+            if (m_handledProtectionEvents.contains(GST_EVENT_SEQNUM(event.get()))) {
+                GST_DEBUG("event %u already handled", GST_EVENT_SEQNUM(event.get()));
+                m_handledProtectionEvents.remove(GST_EVENT_SEQNUM(event.get()));
+                continue;
+            }
             GST_TRACE("handling protection event %u", GST_EVENT_SEQNUM(event.get()));
             const char* eventKeySystemId = nullptr;
             GstBuffer* data = nullptr;
@@ -565,41 +568,44 @@ bool MediaPlayerPrivateGStreamerBase::handleSyncMessage(GstMessage* message)
             sessionId = prSession->sessionId();
 #endif
 
-        RunLoop::main().dispatch([this, eventKeySystemIdString, sessionId, initData = WTFMove(concatenatedInitDataChunks)] {
-            GST_DEBUG("scheduling keyNeeded event for %s with concatenated init datas size of %" G_GSIZE_FORMAT, eventKeySystemIdString.utf8().data(), initData.size());
-            GST_MEMDUMP("init datas", initData.data(), initData.size());
+        if( !bindInitData(concatenatedInitDataChunks) ) {   // if initData was not bound already
+            RunLoop::main().dispatch([this, eventKeySystemIdString, sessionId, initData = WTFMove(concatenatedInitDataChunks)] {
+                GST_DEBUG("scheduling keyNeeded event for %s with concatenated init datas size of %" G_GSIZE_FORMAT, eventKeySystemIdString.utf8().data(), initData.size());
+                GST_MEMDUMP("init datas", initData.data(), initData.size());
 
-            // FIXME: Provide a somehow valid sessionId.
+                // FIXME: Provide a somehow valid sessionId.
 #if ENABLE(LEGACY_ENCRYPTED_MEDIA_V1)
-            needKey(keySystemUuidToId(eventKeySystemIdString).string(), "sessionId", initData.data(), initData.size());
+                needKey(keySystemUuidToId(eventKeySystemIdString).string(), "sessionId", initData.data(), initData.size());
 #elif ENABLE(LEGACY_ENCRYPTED_MEDIA)
-            RefPtr<Uint8Array> initDataArray = Uint8Array::create(initData.data(), initData.size());
-            needKey(initDataArray);
+                RefPtr<Uint8Array> initDataArray = Uint8Array::create(initData.data(), initData.size());
+                needKey(initDataArray);
 #elif ENABLE(ENCRYPTED_MEDIA)
-            fprintf(stderr, "MediaPlayerPrivateGStreamerBase: got init data of size %zu\n", initData.size());
-            m_player->initializationDataEncountered(ASCIILiteral("cenc"), ArrayBuffer::create(initData.data(), initData.size()));
+                fprintf(stderr, "MediaPlayerPrivateGStreamerBase: got init data of size %zu\n", initData.size());
+                m_player->initializationDataEncountered(ASCIILiteral("cenc"), ArrayBuffer::create(initData.data(), initData.size()));
 
-            // ZH_TODO: Verify Widevine path
-            // FIXME: ClearKey BestKey
-//             LockHolder lock(m_protectionMutex);
+                // FIXME: ClearKey BestKey
+//                 LockHolder lock(m_protectionMutex);
 // #if USE(PLAYREADY)
-//             m_lastGenerateKeyRequestKeySystemUuid = AtomicString(PLAYREADY_PROTECTION_SYSTEM_UUID);
-//             m_lastGenerateKeyRequestKeySystemUuid = AtomicString(WIDEVINE_PROTECTION_SYSTEM_UUID);
+//                 m_lastGenerateKeyRequestKeySystemUuid = AtomicString(PLAYREADY_PROTECTION_SYSTEM_UUID);
+//                 m_lastGenerateKeyRequestKeySystemUuid = AtomicString(WIDEVINE_PROTECTION_SYSTEM_UUID);
 // #else
-//             m_lastGenerateKeyRequestKeySystemUuid = AtomicString(CLEAR_KEY_PROTECTION_SYSTEM_UUID);
+//                 m_lastGenerateKeyRequestKeySystemUuid = AtomicString(CLEAR_KEY_PROTECTION_SYSTEM_UUID);
 // #endif
-//             m_protectionCondition.notifyOne();
+//                 m_protectionCondition.notifyOne();
 #else
-            ASSERT_NOT_REACHED();
+                ASSERT_NOT_REACHED();
 #endif
-        });
+            });
 
-        GST_INFO("waiting for a key request to arrive");
-        LockHolder lock(m_protectionMutex);
-        m_protectionCondition.waitFor(m_protectionMutex, Seconds(4), [this] {
-            return !this->m_lastGenerateKeyRequestKeySystemUuid.isEmpty();
-        });
+            GST_INFO("waiting for a key request to arrive, %p",getPipeline(GST_ELEMENT(message->src)));
+            LockHolder lock(m_protectionMutex);
+            fprintf(stderr," %4d | %s\n",__LINE__,__PRETTY_FUNCTION__);
+            protectionCondition().waitFor(m_protectionMutex, Seconds(60));
+        }
+
+        fprintf(stderr," %4d | %s\n",__LINE__,__PRETTY_FUNCTION__);
         if (!m_lastGenerateKeyRequestKeySystemUuid.isEmpty()) {
+            fprintf(stderr," %4d | %s\n",__LINE__,__PRETTY_FUNCTION__);
             GST_INFO("got a key request, continuing with %s on %s", m_lastGenerateKeyRequestKeySystemUuid.utf8().data(), GST_MESSAGE_SRC_NAME(message));
 
             GRefPtr<GstContext> context = adoptGRef(gst_context_new("drm-preferred-decryption-system-id", FALSE));
@@ -707,8 +713,8 @@ FloatSize MediaPlayerPrivateGStreamerBase::naturalSize() const
 
     GRefPtr<GstCaps> caps;
     // We may not have enough data available for the video sink yet.
-    if (!GST_IS_SAMPLE(m_sample.get()))
-        return FloatSize();
+//     if (!GST_IS_SAMPLE(m_sample.get()))
+//         return FloatSize();
 
     if (GST_IS_SAMPLE(m_sample.get()) && !caps)
         caps = gst_sample_get_caps(m_sample.get());
@@ -734,6 +740,11 @@ FloatSize MediaPlayerPrivateGStreamerBase::naturalSize() const
     GstVideoFormat format;
     if (!getVideoSizeAndFormatFromCaps(caps.get(), originalSize, format, pixelAspectRatioNumerator, pixelAspectRatioDenominator, stride))
         return FloatSize();
+
+    if( originalSize.isEmpty() )
+        return FloatSize();
+
+    GST_DEBUG("caps: %s", gst_caps_to_string(caps.get()));
 
 #if USE(TEXTURE_MAPPER_GL)
     // When using accelerated compositing, if the video is tagged as rotated 90 or 270 degrees, swap width and height.
@@ -1111,6 +1122,17 @@ void MediaPlayerPrivateGStreamerBase::setPosition(const IntPoint& position)
 }
 
 #if USE(HOLE_PUNCH_GSTREAMER)
+void MediaPlayerPrivateGStreamerBase::videoSinkCapsChangedCallback(MediaPlayerPrivateGStreamerBase* player)
+{
+    player->m_notifier.notify(MainThreadNotification::VideoCapsChanged, [player] { player->notifyPlayerOfVideoCaps(); });
+}
+
+void MediaPlayerPrivateGStreamerBase::notifyPlayerOfVideoCaps()
+{
+    m_videoSize = IntSize();
+    m_player->client().mediaPlayerEngineUpdated(m_player);
+}
+
 void MediaPlayerPrivateGStreamerBase::updateVideoRectangle()
 {
     if (!m_pipeline) {
@@ -1118,18 +1140,26 @@ void MediaPlayerPrivateGStreamerBase::updateVideoRectangle()
         return;
     }
 
-    GRefPtr<GstElement> sinkElement;
-    g_object_get(m_pipeline.get(), "video-sink", &sinkElement.outPtr(), nullptr);
-    if(!sinkElement) {
+    if( !m_videoSink )
+        g_object_get(m_pipeline.get(), "video-sink", &m_videoSink.outPtr(), nullptr);
+    if( !m_videoSink ) {
         m_pendingSizeSet = true;
         return;
+    }
+
+    if( !m_videoSinkRealized ) {
+        GRefPtr<GstPad> videoSinkPad = adoptGRef(gst_element_get_static_pad(m_videoSink.get(), "sink"));
+        if (videoSinkPad) {
+            g_signal_connect_swapped(videoSinkPad.get(), "notify::caps", G_CALLBACK(videoSinkCapsChangedCallback), this);
+            m_videoSinkRealized = true;
+        }
     }
 
     m_pendingSizeSet = false;
     GST_INFO("Setting video sink size and position to x:%d y:%d, width=%d, height=%d", m_position.x(), m_position.y(), m_size.width(), m_size.height());
 
     GUniquePtr<gchar> rectString(g_strdup_printf("%d,%d,%d,%d", m_position.x(), m_position.y(), m_size.width(),m_size.height()));
-    g_object_set(sinkElement.get(), "rectangle", rectString.get(), nullptr);
+    g_object_set(m_videoSink.get(), "rectangle", rectString.get(), nullptr);
 }
 #endif
 
@@ -1709,35 +1739,41 @@ void MediaPlayerPrivateGStreamerBase::resetOpenCDMFlag()
 #if ENABLE(ENCRYPTED_MEDIA)
 void MediaPlayerPrivateGStreamerBase::postPendingCDMSession()
 {
-    if( m_pendingCDMSession ) {
+    while( !m_pendingCDMSessions.empty() ) {
         gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
-                                                                      gst_structure_new("cdm-session", "session", G_TYPE_POINTER, m_pendingCDMSession, nullptr)));
-//         m_pendingCDMSession = NULL;
+                                                                      gst_structure_new("cdm-session", "session", G_TYPE_POINTER, m_pendingCDMSessions.front(), nullptr)));
+        m_pendingCDMSessions.pop_front();
     }
 }
 
 void MediaPlayerPrivateGStreamerBase::attemptToDecryptWithInstance(const CDMInstance& baseInstance)
 {
-    #if USE(PLAYREADY)
+#if USE(PLAYREADY)
     if( baseInstance.implementationType() == CDMInstance::ImplementationType::PlayReady )
     {
-        receivedGenerateKeyRequest(PLAYREADY_PROTECTION_SYSTEM_ID);
         auto& prinstance = reinterpret_cast<const CDMInstancePlayReady&>(baseInstance);
-        auto& prSession = prinstance.prSession();
+        std::list<PlayreadySession*>& prSessions = prinstance.prSessions();
 
-        if (prSession.ready())
-            m_pendingCDMSession = static_cast<CDMProcessPayloadBase*>(&prSession);
+        for( std::list<PlayreadySession*>::iterator it = prSessions.begin(); it != prSessions.end(); ++it ) {
+            if ((*it)->ready()) {
+                receivedGenerateKeyRequest(PLAYREADY_PROTECTION_SYSTEM_ID);
+                m_pendingCDMSessions.push_back( static_cast<CDMProcessPayloadBase*>(*it) );
+            }
+        }
     }
 #endif
 #if USE(WIDEVINE)
     if( baseInstance.implementationType() == CDMInstance::ImplementationType::Widevine )
     {
-        receivedGenerateKeyRequest(WIDEVINE_PROTECTION_SYSTEM_ID);
         auto& wvinstance = reinterpret_cast<const CDMInstanceWidevine&>(baseInstance);
-        auto& wvSession = wvinstance.wvSession();
+        std::list<WidevineSession*>& wvSessions = wvinstance.wvSessions();
 
-        if (wvSession.ready())
-            m_pendingCDMSession = static_cast<CDMProcessPayloadBase*>(&wvSession);
+        for( std::list<WidevineSession*>::iterator it = wvSessions.begin(); it != wvSessions.end(); ++it ) {
+            if ((*it)->ready()) {
+                receivedGenerateKeyRequest(WIDEVINE_PROTECTION_SYSTEM_ID);
+                m_pendingCDMSessions.push_back( static_cast<CDMProcessPayloadBase*>(*it) );
+            }
+        }
     }
 #endif
 
@@ -2097,6 +2133,16 @@ void MediaPlayerPrivateGStreamerBase::dispatchDecryptionKey(GstBuffer* buffer)
 {
     gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
         gst_structure_new("drm-cipher", "key", GST_TYPE_BUFFER, buffer, nullptr)));
+}
+
+bool MediaPlayerPrivateGStreamerBase::bindInitData( const Vector<uint8_t> & )
+{
+    return false;
+}
+
+Condition &MediaPlayerPrivateGStreamerBase::protectionCondition()
+{
+    return m_protectionCondition;
 }
 
 void MediaPlayerPrivateGStreamerBase::handleProtectionEvent(GstEvent* event, GstElement* element)

@@ -192,10 +192,10 @@ static void clearFlags(unsigned& value, unsigned flags)
 #undef LOG_DISABLED
 #endif
 
-// #define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
-// #define LOG_DISABLED 0
-#define LOG( x, s... )  ({ })
-#define LOG_DISABLED 1
+#define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
+#define LOG_DISABLED 0
+// #define LOG( x, s... )  ({ })
+// #define LOG_DISABLED 1
 
 #if !LOG_DISABLED
 static String urlForLoggingMedia(const URL& url)
@@ -2732,6 +2732,7 @@ bool HTMLMediaElement::mediaPlayerInitializationDataEncountered(const String& in
     MediaEncryptedEventInit initializer { initDataType, WTFMove(initData) };
     m_asyncEventQueue.enqueueEvent(MediaEncryptedEvent::create(eventNames().encryptedEvent, initializer, Event::IsTrusted::Yes));
 
+    LOG(Media,"HTMLMediaElement::%s(), %s",__FUNCTION__,initDataType.ascii().data());
     return true;
 }
 

@@ -55,6 +55,7 @@ MediaKeySystemAccess::~MediaKeySystemAccess() = default;
 
 void MediaKeySystemAccess::createMediaKeys(Ref<DeferredPromise>&& promise)
 {
+    fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     // https://w3c.github.io/encrypted-media/#dom-mediakeysystemaccess-createmediakeys
     // W3C Editor's Draft 09 November 2016
 
@@ -62,6 +63,7 @@ void MediaKeySystemAccess::createMediaKeys(Ref<DeferredPromise>&& promise)
     // 1. Let promise be a new promise.
     // 2. Run the following steps in parallel:
     m_taskQueue.enqueueTask([this, promise = WTFMove(promise)] () mutable {
+        fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
         // 2.1. Let configuration be the value of this object's configuration value.
         // 2.2. Let use distinctive identifier be true if the value of configuration's distinctiveIdentifier member is "required" and false otherwise.
         bool useDistinctiveIdentifier = m_configuration->distinctiveIdentifier == MediaKeysRequirement::Required;
@@ -75,18 +77,21 @@ void MediaKeySystemAccess::createMediaKeys(Ref<DeferredPromise>&& promise)
         // 2.5. Let instance be a new instance of the Key System implementation represented by this object's cdm implementation value.
         auto instance = m_implementation->createInstance();
         if (!instance) {
+            fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
             promise->reject(INVALID_STATE_ERR);
             return;
         }
 
         // 2.6. Initialize instance to enable, disable and/or select Key System features using configuration.
         if (instance->initializeWithConfiguration(*m_configuration) == CDMInstance::Failed) {
+            fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
             promise->reject(NotAllowedError);
             return;
         }
 
         // 2.7. If use distinctive identifier is false, prevent instance from using Distinctive Identifier(s) and Distinctive Permanent Identifier(s).
         if (!useDistinctiveIdentifier && instance->setDistinctiveIdentifiersAllowed(false) == CDMInstance::Failed) {
+            fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
             promise->reject(NotAllowedError);
             return;
         }
@@ -94,6 +99,7 @@ void MediaKeySystemAccess::createMediaKeys(Ref<DeferredPromise>&& promise)
         // 2.8. If persistent state allowed is false, prevent instance from persisting any state related to the application or origin of this object's Document.
         if (!persistentStateAllowed && instance->setPersistentStateAllowed(false) == CDMInstance::Failed) {
             promise->reject(NotAllowedError);
+            fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
             return;
         }
 
@@ -104,12 +110,15 @@ void MediaKeySystemAccess::createMediaKeys(Ref<DeferredPromise>&& promise)
         // 2.10.3. Let the supported session types value be be the value of configuration's sessionTypes member.
         // 2.10.4. Let the cdm implementation value be this object's cdm implementation value.
         // 2.10.5. Let the cdm instance value be instance.
+        fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
         auto mediaKeys = MediaKeys::create(useDistinctiveIdentifier, persistentStateAllowed, m_configuration->sessionTypes, m_implementation.copyRef(), instance.releaseNonNull());
 
         // 2.11. Resolve promise with media keys.
         promise->resolveWithNewlyCreated<IDLInterface<MediaKeys>>(WTFMove(mediaKeys));
+        fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     });
 
+    fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     // 3. Return promise.
 }
 

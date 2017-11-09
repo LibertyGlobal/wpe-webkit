@@ -46,10 +46,12 @@ MediaKeys::MediaKeys(bool useDistinctiveIdentifier, bool persistentStateAllowed,
     , m_implementation(WTFMove(implementation))
     , m_instance(WTFMove(instance))
 {
+    fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
 }
 
 MediaKeys::~MediaKeys()
 {
+    fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     for (auto& session : m_sessions)
         session->detachKeys();
 }
@@ -61,18 +63,24 @@ ExceptionOr<Ref<MediaKeySession>> MediaKeys::createSession(ScriptExecutionContex
 
     // When this method is invoked, the user agent must run the following steps:
     // 1. If this object's supported session types value does not contain sessionType, throw [WebIDL] a NotSupportedError.
-    if (!m_supportedSessionTypes.contains(sessionType))
+    fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+    if (!m_supportedSessionTypes.contains(sessionType)) {
+        fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
         return Exception(NOT_SUPPORTED_ERR);
+    }
 
     // 2. If the implementation does not support MediaKeySession operations in the current state, throw [WebIDL] an InvalidStateError.
-    if (!m_implementation->supportsSessions())
+    if (!m_implementation->supportsSessions()) {
+        fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
         return Exception(INVALID_STATE_ERR);
+    }
 
     // 3. Let session be a new MediaKeySession object, and initialize it as follows:
     // NOTE: Continued in MediaKeySession.
     // 4. Return session.
     auto session = MediaKeySession::create(context, *this, sessionType, m_useDistinctiveIdentifier, m_implementation.copyRef(), m_instance.copyRef());
     m_sessions.append(session.copyRef());
+    fprintf(stderr," %4d | %p | %p | MediaKeys::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     return WTFMove(session);
 }
 

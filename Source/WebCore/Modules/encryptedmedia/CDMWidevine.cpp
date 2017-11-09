@@ -319,13 +319,14 @@ std::optional<String> CDMPrivateWidevine::sanitizeSessionId(const String&) const
 // CDMInstanceWidevine
 
 CDMInstanceWidevine::CDMInstanceWidevine()
-    : m_wvSession(std::make_unique<WidevineSession>(Vector<uint8_t>{ }, nullptr))
 {
-    host.addSession( &*m_wvSession );
 }
 
 CDMInstanceWidevine::~CDMInstanceWidevine() {
-    host.delSession( &*m_wvSession ) ;
+    for( std::list<WidevineSession*>::iterator it = m_wvSessions.begin(); it != m_wvSessions.end(); ++it ) {
+        host.delSession( *it );
+        delete *it;
+    }
 }
 
 CDMInstance::SuccessValue CDMInstanceWidevine::initializeWithConfiguration(const MediaKeySystemConfiguration&)
@@ -360,25 +361,42 @@ void CDMInstanceWidevine::requestLicense(LicenseType, const AtomicString& /*init
     String              destinationURL;
     RefPtr<Uint8Array>  result;
     RefPtr<Uint8Array> initDataArray = Uint8Array::create( reinterpret_cast<const uint8_t*>(initData->data()), initData->size() );
-    result = m_wvSession->widevineGenerateKeyRequest(initDataArray.get(), String(), destinationURL, errorCode, systemCode);
+    Vector<uint8_t> _initData;
+    _initData.append( reinterpret_cast<const uint8_t*>(initData->data()), initData->size() );
+    WidevineSession *session = new WidevineSession( _initData, nullptr );
+    host.addSession( session );
+    result = session->widevineGenerateKeyRequest(initDataArray.get(), String(), destinationURL, errorCode, systemCode);
 
     if (!result) {
-        callback(SharedBuffer::create(), m_wvSession->sessionId(), false, Failed);
+        callback(SharedBuffer::create(), session->sessionId(), false, Failed);
+        host.delSession( session );
+        delete session;
         return;
     }
-
-    callback(SharedBuffer::create(result->data(), result->byteLength()), m_wvSession->sessionId(), false, Succeeded);
+    m_wvSessions.push_back( session );
+    callback(SharedBuffer::create(result->data(), result->byteLength()), session->sessionId(), false, Succeeded);
 }
 
-void CDMInstanceWidevine::updateLicense(const String& /*sessionId*/, LicenseType, const SharedBuffer& response, LicenseUpdateCallback callback)
+void CDMInstanceWidevine::updateLicense(const String& sessionId, LicenseType, const SharedBuffer& response, LicenseUpdateCallback callback)
 {
     fprintf(stderr, "NotImplemented: CDMInstancePlayReady::%s()\n", __func__);
 
+    WidevineSession *session = NULL;
+    for( std::list<WidevineSession*>::iterator it = m_wvSessions.begin(); it != m_wvSessions.end(); ++it ) {
+        if( (*it)->sessionId() == sessionId ) {
+            session = *it;
+            break;
+        }
+    }
+    if( !session ) {
+        callback(false, std::nullopt, std::nullopt, std::nullopt, Failed);
+        return;
+    }
     RefPtr<Uint8Array> message;
     unsigned short errorCode = 0;
     uint32_t systemCode = 0;
     RefPtr<Uint8Array> responseArray = Uint8Array::create(reinterpret_cast<const uint8_t*>(response.data()), response.size());
-    bool result = m_wvSession->widevineProcessKey(responseArray.get(), message, errorCode, systemCode);
+    bool result = session->widevineProcessKey(responseArray.get(), message, errorCode, systemCode);
 
     if (!result || errorCode) {
         callback(false, std::nullopt, std::nullopt, std::nullopt, Failed);
@@ -391,8 +409,8 @@ void CDMInstanceWidevine::updateLicense(const String& /*sessionId*/, LicenseType
     }
 
     std::optional<KeyStatusVector> changedKeys;
-    if (m_wvSession->ready()) {
-        auto& key = m_wvSession->key();
+    if (session->ready()) {
+        auto& key = session->key();
         if (key) {
             changedKeys = KeyStatusVector();
             Ref<SharedBuffer> keyData = SharedBuffer::create(reinterpret_cast<const char*>(key->data()), key->byteLength());

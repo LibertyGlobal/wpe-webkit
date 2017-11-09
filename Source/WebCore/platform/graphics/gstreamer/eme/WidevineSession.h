@@ -45,10 +45,10 @@ public:
     bool ready() const { return m_eKeyState == KEY_READY; }
     virtual int processPayload(const void* iv, uint32_t ivSize, const void *kid, uint32_t kidSize, void* payloadData, uint32_t payloadDataSize, void** decrypted);
     virtual bool isCenc() { return m_initType == widevine::Cdm::kCenc; }
-    //     static void freeDecrypted(void* decrypted);
+    static void freeDecrypted(void* decrypted);
 
     // Helper for WidevineSession clients.
-    const Vector<uint8_t>& initData() { return m_initData; }
+    virtual const Vector<uint8_t>& initData() { return m_initData; }
     const String& sessionId() { return m_sessionId; }
     bool hasPipeline(const void* pipeline) { return m_pipeline == pipeline; }
 

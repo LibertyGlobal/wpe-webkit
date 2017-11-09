@@ -90,7 +90,15 @@ public:
     void reportAppsrcAtLeastABufferLeft();
     void reportAppsrcNeedDataReceived();
 
-    void setPendingCDMSession( void* );
+    bool addPendingCDMSession( void* );
+
+#if ENABLE(ENCRYPTED_MEDIA)
+    enum class BoundState { NotBound, Bound, PreviouslyBound };
+    BoundState bindInitData( const Vector<uint8_t> &lastInitData );
+    bool testInitData( const Vector<uint8_t> &initData );
+    bool currentAppendPipeline();
+    Condition &protectionCondition() { return m_protectionCondition; }
+#endif
 
 private:
     void resetPipeline();
@@ -161,7 +169,13 @@ private:
     GRefPtr<GstBuffer> m_pendingKey;
 #endif
     bool m_webm;
+    void *m_awaitingInitData;
     void *m_pendingCDMSession;
+    std::list<void *> m_cdmSessions;
+    #if ENABLE(ENCRYPTED_MEDIA)
+    Condition m_protectionCondition;
+    Vector<uint8_t> m_initData;
+#endif
 };
 
 } // namespace WebCore.

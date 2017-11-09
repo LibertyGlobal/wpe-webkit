@@ -142,11 +142,15 @@ std::optional<String> CDMPrivatePlayReady::sanitizeSessionId(const String&) cons
 // CDMInstancePlayReady
 
 CDMInstancePlayReady::CDMInstancePlayReady()
-    : m_prSession(std::make_unique<PlayreadySession>(Vector<uint8_t>{ }, nullptr))
 {
 }
 
-CDMInstancePlayReady::~CDMInstancePlayReady() = default;
+CDMInstancePlayReady::~CDMInstancePlayReady()
+{
+    for( std::list<PlayreadySession*>::iterator it = m_prSessions.begin(); it != m_prSessions.end(); ++it ) {
+        delete *it;
+    }
+}
 
 CDMInstance::SuccessValue CDMInstancePlayReady::initializeWithConfiguration(const MediaKeySystemConfiguration&)
 {
@@ -217,26 +221,40 @@ void CDMInstancePlayReady::requestLicense(LicenseType, const AtomicString& /*ini
         initBlock = reinterpret_cast<const uint8_t*>(initData->data());
         initLength = initData->size();
     }
+    Vector<uint8_t> _initData;
+    _initData.append( reinterpret_cast<const uint8_t*>(initData->data()), initData->size() );
+    PlayreadySession *session = new PlayreadySession( _initData, nullptr);
     RefPtr<Uint8Array> initDataArray = Uint8Array::create( initBlock, initLength );
-    result = m_prSession->playreadyGenerateKeyRequest(initDataArray.get(), String(), destinationURL, errorCode, systemCode);
-
+    result = session->playreadyGenerateKeyRequest(initDataArray.get(), String(), destinationURL, errorCode, systemCode);
     if (!result) {
+        delete session;
         callback(SharedBuffer::create(), String(), false, Failed);
         return;
     }
-
-    callback(SharedBuffer::create(result->data(), result->byteLength()), createCanonicalUUIDString(), false, Succeeded);
+    m_prSessions.push_back( session );
+    callback(SharedBuffer::create(result->data(), result->byteLength()), session->sessionId(), false, Succeeded);
 }
 
-void CDMInstancePlayReady::updateLicense(const String& /*sessionId*/, LicenseType, const SharedBuffer& response, LicenseUpdateCallback callback)
+void CDMInstancePlayReady::updateLicense(const String& sessionId, LicenseType, const SharedBuffer& response, LicenseUpdateCallback callback)
 {
     fprintf(stderr, "NotImplemented: CDMInstancePlayReady::%s()\n", __func__);
 
+    PlayreadySession *session = NULL;
+    for( std::list<PlayreadySession*>::iterator it = m_prSessions.begin(); it != m_prSessions.end(); ++it ) {
+        if( (*it)->sessionId() == sessionId ) {
+            session = *it;
+            break;
+        }
+    }
+    if( !session ) {
+        callback(false, std::nullopt, std::nullopt, std::nullopt, Failed);
+        return;
+    }
     RefPtr<Uint8Array> message;
     unsigned short errorCode = 0;
     uint32_t systemCode = 0;
     RefPtr<Uint8Array> responseArray = Uint8Array::create(reinterpret_cast<const uint8_t*>(response.data()), response.size());
-    bool result = m_prSession->playreadyProcessKey(responseArray.get(), message, errorCode, systemCode);
+    bool result = session->playreadyProcessKey(responseArray.get(), message, errorCode, systemCode);
 
     if (!result || errorCode) {
         callback(false, std::nullopt, std::nullopt, std::nullopt, Failed);
@@ -244,8 +262,8 @@ void CDMInstancePlayReady::updateLicense(const String& /*sessionId*/, LicenseTyp
     }
 
     std::optional<KeyStatusVector> changedKeys;
-    if (m_prSession->ready()) {
-        auto& key = m_prSession->key();
+    if (session->ready()) {
+        auto& key = session->key();
         if (key) {
             changedKeys = KeyStatusVector();
             Ref<SharedBuffer> keyData = SharedBuffer::create(reinterpret_cast<const char*>(key->data()), key->byteLength());

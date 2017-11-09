@@ -26,6 +26,7 @@
 #include "CDMProcessPayloadBase.h"
 #include <gst/base/gstbytereader.h>
 #include <gstsvpmeta.h>
+#include "PlayreadySession.h"
 
 #define WEBKIT_MEDIA_PLAYREADY_DECRYPT_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE((obj), WEBKIT_TYPE_MEDIA_PLAYREADY_DECRYPT, WebKitMediaPlayReadyDecryptPrivate))
 struct _WebKitMediaPlayReadyDecryptPrivate
@@ -113,27 +114,27 @@ static gboolean webKitMediaPlayReadyDecryptorHandleKeyResponse(WebKitMediaCommon
     return TRUE;
 }
 
-// static void buffer_release_fn(GstStructure *s)
-// {
-//     GST_DEBUG("struct=%p", s);
-//     if (gst_structure_has_name(s, GST_SVP_SYSTEM_ID_CAPS_FIELD))
-//     {
-//         GstBuffer *samples;
-//         void* secure;
-//         gboolean valid = gst_structure_get(s, "secure_buffer", G_TYPE_POINTER, &secure, "chunks_info", GST_TYPE_BUFFER, &samples, nullptr);
-//         GST_DEBUG("secure=%p, samples=%p", secure, samples);
-//         if (valid)
-//         {
-            // freed internally - see patch 0018
-//             if (secure != NULL)
-//                 WebCore::PlayreadySession::freeDecrypted(secure);
-//             if (samples != NULL)
-//                 gst_buffer_unref(samples);
-//         }
-//     }
-//     else
-//         GST_ERROR("no name " GST_SVP_SYSTEM_ID_CAPS_FIELD);
-// }
+static void buffer_release_fn(GstStructure *s)
+{
+    GST_DEBUG("struct=%p", s);
+    if (gst_structure_has_name(s, GST_SVP_SYSTEM_ID_CAPS_FIELD))
+    {
+        GstBuffer *samples;
+        void* secure;
+        gboolean valid = gst_structure_get(s, "secure_buffer", G_TYPE_POINTER, &secure, "chunks_info", GST_TYPE_BUFFER, &samples, nullptr);
+        GST_DEBUG("secure=%p, samples=%p", secure, samples);
+        if (valid)
+        {
+//             freed internally - see patch 0018
+            if (secure != NULL)
+                WebCore::PlayreadySession::freeDecrypted(secure);
+            if (samples != NULL)
+                gst_buffer_unref(samples);
+        }
+    }
+    else
+        GST_ERROR("no name " GST_SVP_SYSTEM_ID_CAPS_FIELD);
+}
 
 static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryptionDecrypt* self, GstBuffer* ivBuffer, GstBuffer* /*kid*/, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer)
 {
@@ -260,7 +261,7 @@ static gboolean webKitMediaPlayReadyDecryptorDecrypt(WebKitMediaCommonEncryption
                                         "secure_buffer", G_TYPE_POINTER, decrypted,
                                         "chunks_info", GST_TYPE_BUFFER, b,
                                         "chunks_cnt", G_TYPE_UINT, subSampleCount, nullptr),
-                                nullptr/*buffer_release_fn*/);
+                                buffer_release_fn);
     }
     else
     {

@@ -133,7 +133,7 @@ MediaSourcePrivate::AddStatus PlaybackPipeline::addSourceBuffer(RefPtr<SourceBuf
     gst_app_src_set_emit_signals(GST_APP_SRC(stream->appsrc), FALSE);
     gst_app_src_set_stream_type(GST_APP_SRC(stream->appsrc), GST_APP_STREAM_TYPE_SEEKABLE);
 
-    gst_app_src_set_max_bytes(GST_APP_SRC(stream->appsrc), 2 * WTF::MB);
+    gst_app_src_set_max_bytes(GST_APP_SRC(stream->appsrc), 16 * WTF::MB);
     g_object_set(G_OBJECT(stream->appsrc), "block", FALSE, "min-percent", 20, "format", GST_FORMAT_TIME, nullptr);
 
     GST_OBJECT_LOCK(m_webKitMediaSrc.get());
@@ -189,33 +189,50 @@ void PlaybackPipeline::attachTrack(RefPtr<SourceBufferPrivateGStreamer> sourceBu
         g_object_set(capsfilter, "caps", filterCaps.get(), nullptr);
 
         stream->parser = gst_bin_new(parserBinName.get());
+        gst_bin_add(GST_BIN(stream->parser), capsfilter);
 
-        GstElement* parser = gst_element_factory_make("h264parse", nullptr);
-        gst_bin_add_many(GST_BIN(stream->parser), parser, capsfilter, nullptr);
-        gst_element_link_pads(parser, "src", capsfilter, "sink");
-
-        GRefPtr<GstPad> pad = adoptGRef(gst_element_get_static_pad(parser, "sink"));
+        GRefPtr<GstPad> pad = adoptGRef(gst_element_get_static_pad(capsfilter, "sink"));
         gst_element_add_pad(stream->parser, gst_ghost_pad_new("sink", pad.get()));
 
         pad = adoptGRef(gst_element_get_static_pad(capsfilter, "src"));
         gst_element_add_pad(stream->parser, gst_ghost_pad_new("src", pad.get()));
+//         stream->parser = gst_bin_new(parserBinName.get());
+//
+//         GstElement* parser = gst_element_factory_make("h264parse", nullptr);
+//         gst_bin_add_many(GST_BIN(stream->parser), parser, capsfilter, nullptr);
+//         gst_element_link_pads(parser, "src", capsfilter, "sink");
+//
+//         GRefPtr<GstPad> pad = adoptGRef(gst_element_get_static_pad(parser, "sink"));
+//         gst_element_add_pad(stream->parser, gst_ghost_pad_new("sink", pad.get()));
+//
+//         pad = adoptGRef(gst_element_get_static_pad(capsfilter, "src"));
+//         gst_element_add_pad(stream->parser, gst_ghost_pad_new("src", pad.get()));
     } else if (!g_strcmp0(mediaType, "video/x-h265")) {
         GRefPtr<GstCaps> filterCaps = adoptGRef(gst_caps_new_simple("video/x-h265", "alignment", G_TYPE_STRING, "au", nullptr));
         GstElement* capsfilter = gst_element_factory_make("capsfilter", nullptr);
         g_object_set(capsfilter, "caps", filterCaps.get(), nullptr);
 
         stream->parser = gst_bin_new(parserBinName.get());
+        gst_bin_add(GST_BIN(stream->parser), capsfilter);
 
-        GstElement* parser = gst_element_factory_make("h265parse", nullptr);
-        gst_bin_add_many(GST_BIN(stream->parser), parser, capsfilter, nullptr);
-        gst_element_link_pads(parser, "src", capsfilter, "sink");
-
-        GRefPtr<GstPad> pad = adoptGRef(gst_element_get_static_pad(parser, "sink"));
+        GRefPtr<GstPad> pad = adoptGRef(gst_element_get_static_pad(capsfilter, "sink"));
         gst_element_add_pad(stream->parser, gst_ghost_pad_new("sink", pad.get()));
 
         pad = adoptGRef(gst_element_get_static_pad(capsfilter, "src"));
         gst_element_add_pad(stream->parser, gst_ghost_pad_new("src", pad.get()));
+//         stream->parser = gst_bin_new(parserBinName.get());
+//
+//         GstElement* parser = gst_element_factory_make("h265parse", nullptr);
+//         gst_bin_add_many(GST_BIN(stream->parser), parser, capsfilter, nullptr);
+//         gst_element_link_pads(parser, "src", capsfilter, "sink");
+//
+//         GRefPtr<GstPad> pad = adoptGRef(gst_element_get_static_pad(parser, "sink"));
+//         gst_element_add_pad(stream->parser, gst_ghost_pad_new("sink", pad.get()));
+//
+//         pad = adoptGRef(gst_element_get_static_pad(capsfilter, "src"));
+//         gst_element_add_pad(stream->parser, gst_ghost_pad_new("src", pad.get()));
     } else if (!g_strcmp0(mediaType, "audio/mpeg")) {
+//         stream->parser = nullptr;
         gint mpegversion = -1;
         gst_structure_get_int(structure, "mpegversion", &mpegversion);
 

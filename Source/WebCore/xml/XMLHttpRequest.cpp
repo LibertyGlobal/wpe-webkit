@@ -682,6 +682,18 @@ ExceptionOr<void> XMLHttpRequest::sendBytesData(const void* data, size_t length)
     return createRequest();
 }
 
+static char *_timestamp() {
+    static char _buf[64] = { 0 };
+    time_t _t= time(NULL);
+    ctime_r( &_t, _buf );
+    char *p = strchr(_buf,'\n');
+    if(p)
+        *p = 0;
+    return _buf;
+}
+
+#define fprintf(s...) 0
+
 ExceptionOr<void> XMLHttpRequest::createRequest()
 {
     // Only GET request is supported for blob URL.
@@ -718,6 +730,12 @@ ExceptionOr<void> XMLHttpRequest::createRequest()
         ASSERT(m_method != "HEAD");
         request.setHTTPBody(WTFMove(m_requestEntityBody));
     }
+
+    fprintf(stderr," %4d | %s | XMLHttpRequest::%s() %s\n",__LINE__,_timestamp(),__FUNCTION__,m_url.string().utf8().data());
+    if (!m_requestHeaders.isEmpty())
+        for( HTTPHeaderMap::const_iterator it = m_requestHeaders.begin(); it != m_requestHeaders.end(); ++it ) {
+            fprintf(stderr,"%s: %s\n",it->key.utf8().data(),it->value.utf8().data());
+        }
 
     if (!m_requestHeaders.isEmpty())
         request.setHTTPHeaderFields(m_requestHeaders);
@@ -777,6 +795,7 @@ ExceptionOr<void> XMLHttpRequest::createRequest()
 
 void XMLHttpRequest::abort()
 {
+    fprintf(stderr," %4d | %s | XMLHttpRequest::%s() %s\n",__LINE__,_timestamp(),__FUNCTION__,m_url.string().utf8().data());
     // internalAbort() calls dropProtection(), which may release the last reference.
     Ref<XMLHttpRequest> protectedThis(*this);
 
@@ -1013,6 +1032,7 @@ String XMLHttpRequest::statusText() const
 
 void XMLHttpRequest::didFail(const ResourceError& error)
 {
+    fprintf(stderr," %4d | %s | XMLHttpRequest::%s() %s\n",__LINE__,_timestamp(),__FUNCTION__,m_url.string().utf8().data());
     // If we are already in an error state, for instance we called abort(), bail out early.
     if (m_error)
         return;
@@ -1052,6 +1072,7 @@ void XMLHttpRequest::didFail(const ResourceError& error)
 
 void XMLHttpRequest::didFinishLoading(unsigned long identifier)
 {
+    fprintf(stderr," %4d | %s | XMLHttpRequest::%s() %s\n",__LINE__,_timestamp(),__FUNCTION__,m_url.string().utf8().data());
     if (m_error)
         return;
 
@@ -1070,11 +1091,14 @@ void XMLHttpRequest::didFinishLoading(unsigned long identifier)
         decodedText = m_responseBuilder.toStringPreserveCapacity();
     InspectorInstrumentation::didFinishXHRLoading(scriptExecutionContext(), identifier, decodedText, m_url, m_lastSendURL, m_lastSendLineNumber, m_lastSendColumnNumber);
 
+    fprintf(stderr," %4d | XMLHttpRequest::%s() %s\n%s\n",__LINE__,__FUNCTION__,m_url.string().utf8().data(),getAllResponseHeaders().utf8().data());
+
     bool hadLoader = m_loader;
     m_loader = nullptr;
 
     m_sendFlag = false;
     changeState(DONE);
+    fprintf(stderr," %4d | %s | XMLHttpRequest::%s() %s\n",__LINE__,_timestamp(),__FUNCTION__,m_url.string().utf8().data());
     m_responseEncoding = String();
     m_decoder = nullptr;
 

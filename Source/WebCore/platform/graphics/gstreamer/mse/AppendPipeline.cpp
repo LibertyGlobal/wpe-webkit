@@ -41,6 +41,10 @@
 #include <wtf/Condition.h>
 #include <wtf/glib/GLibUtilities.h>
 
+#if ENABLE(ENCRYPTED_MEDIA)
+#include "CDMProcessPayloadBase.h"
+#endif
+
 GST_DEBUG_CATEGORY_EXTERN(webkit_mse_debug);
 #define GST_CAT_DEFAULT webkit_mse_debug
 
@@ -112,6 +116,7 @@ AppendPipeline::AppendPipeline(Ref<MediaSourceClientGStreamerMSE> mediaSourceCli
     , m_abortPending(false)
     , m_streamType(Unknown)
     , m_webm( webm )
+    , m_awaitingInitData( nullptr )
     , m_pendingCDMSession( nullptr )
 {
     ASSERT(WTF::isMainThread());
@@ -291,16 +296,26 @@ void AppendPipeline::clearPlayerPrivate()
 
 void AppendPipeline::handleNeedContextSyncMessage(GstMessage* message)
 {
+    fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     const gchar* contextType = nullptr;
     gst_message_parse_context_type(message, &contextType);
     GST_TRACE("context type: %s", contextType);
     if (!g_strcmp0(contextType, "drm-preferred-decryption-system-id")
         && m_appendState != AppendPipeline::AppendState::KeyNegotiation)
+    {
+        m_awaitingInitData = (void*)pthread_self();
         setAppendState(AppendPipeline::AppendState::KeyNegotiation);
+// #if ENABLE(ENCRYPTED_MEDIA)
+//         m_initData.clear();
+// #endif
+    }
 
     // MediaPlayerPrivateGStreamerBase will take care of setting up encryption.
+    fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     if (m_playerPrivate)
         m_playerPrivate->handleSyncMessage(message);
+    m_awaitingInitData = nullptr;
+    fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
 }
 
 void AppendPipeline::handleApplicationMessage(GstMessage* message)
@@ -353,6 +368,7 @@ void AppendPipeline::handleElementMessage(GstMessage* message)
 {
     ASSERT(WTF::isMainThread());
 
+    fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     const GstStructure* structure = gst_message_get_structure(message);
     GST_TRACE("%s message from %s", gst_structure_get_name(structure), GST_MESSAGE_SRC_NAME(message));
     if (m_playerPrivate && gst_structure_has_name(structure, "drm-key-needed")) {
@@ -362,8 +378,11 @@ void AppendPipeline::handleElementMessage(GstMessage* message)
         GST_DEBUG("sending drm-key-needed message from %s to the player", GST_MESSAGE_SRC_NAME(message));
         GRefPtr<GstEvent> event;
         gst_structure_get(structure, "event", GST_TYPE_EVENT, &event.outPtr(), nullptr);
+        fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
         m_playerPrivate->handleProtectionEvent(event.get(), getPipeline(GST_ELEMENT(message->src)));
+        fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     }
+    fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
 }
 #endif
 
@@ -452,7 +471,8 @@ void AppendPipeline::setAppendState(AppendState newAppendState)
         switch (newAppendState) {
         case AppendState::Ongoing:
             ok = true;
-                gst_element_set_state(m_pipeline.get(), GST_STATE_PLAYING);
+            fprintf(stderr," %4d | %p | %s, gst_element_set_state( GST_STATE_PLAYING )\n",__LINE__,this,__FUNCTION__);
+            gst_element_set_state(m_pipeline.get(), GST_STATE_PLAYING);
             break;
         case AppendState::NotStarted:
             ok = true;
@@ -505,6 +525,10 @@ void AppendPipeline::setAppendState(AppendState newAppendState)
             else
                 nextAppendState = AppendState::NotStarted;
             break;
+        case AppendState::Ongoing:
+            ok = true;
+            fprintf(stderr," %4d | %p | %s, gst_element_set_state( GST_STATE_PLAYING )\n",__LINE__,this,__FUNCTION__);
+            gst_element_set_state(m_pipeline.get(), GST_STATE_PLAYING);
         default:
             break;
         }
@@ -630,6 +654,8 @@ void AppendPipeline::parseDemuxerSrcPadCaps(GstCaps* demuxerSrcPadCaps)
             }
 
             m_presentationSize = WebCore::FloatSize(width, finalHeight);
+            if( m_playerPrivate )
+                m_playerPrivate->setNaturalSize( m_presentationSize );
             m_streamType = WebCore::MediaSourceStreamTypeGStreamer::Video;
         } else {
             m_presentationSize = WebCore::FloatSize();
@@ -667,9 +693,78 @@ void AppendPipeline::parseDemuxerSrcPadCaps(GstCaps* demuxerSrcPadCaps)
     }
 }
 
-void AppendPipeline::setPendingCDMSession( void *pendingCDMSession )
+inline void dumpBuffer( const unsigned char *buf, int len ) {
+    return;
+    char out[128];
+    int l, i, m, o = 0;
+    while( len > 0 ) {
+        l = 0;
+        m = len > 16 ? 16 : len;
+        l += snprintf(out+l,sizeof(out)-l," %04x: ", o);
+        for( i = 0; i < m; ++i )
+            l += snprintf(out+l,sizeof(out)-l,(i==8)?"   %02x ":"%02x ", buf[i]);
+        while( l < 64 )
+            out[l++] = ' ';
+        for( i = 0; i < m; ++i )
+            l += snprintf(out+l,sizeof(out)-l,"%c",((buf[i]<32)||(buf[i]>=128))?'.':buf[i]);
+        buf += m;
+        len -= m;
+        o += m;
+        fprintf(stderr,"%s\n",out);
+    }
+}
+
+
+#if ENABLE(ENCRYPTED_MEDIA)
+bool AppendPipeline::currentAppendPipeline()
 {
+    return ( m_appendState == AppendState::KeyNegotiation ) && ( m_awaitingInitData == (void*)pthread_self() );
+}
+
+AppendPipeline::BoundState AppendPipeline::bindInitData( const Vector<uint8_t> &lastInitData )
+{
+    fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+    if( currentAppendPipeline() )
+    {
+        fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+        m_initData = lastInitData;
+        for( it : m_cdmSessions )
+        {
+            fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+            CDMProcessPayloadBase *cpp = reinterpret_cast<CDMProcessPayloadBase*>(it);
+            if( cpp->initData() == lastInitData )
+            {
+                addPendingCDMSession( cpp );
+                setAppendState( AppendState::Ongoing );
+                fprintf(stderr," %4d | %p | %p | AppendPipeline::%s - PreviouslyBound\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+                return BoundState::PreviouslyBound;
+            }
+        }
+        dumpBuffer( &lastInitData[0], lastInitData.size() );
+        fprintf(stderr," %4d | %p | %p | AppendPipeline::%s - Bound\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+        return BoundState::Bound;
+    }
+    fprintf(stderr," %4d | %p | %p | AppendPipeline::%s - NotBound\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+    return BoundState::NotBound;
+}
+
+bool AppendPipeline::testInitData( const Vector<uint8_t> &initData )
+{
+    return m_initData == initData;
+}
+#endif
+
+bool AppendPipeline::addPendingCDMSession( void *pendingCDMSession )
+{
+    gst_element_send_event(m_pipeline.get(), gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB,
+                                                                  gst_structure_new("cdm-session", "session", G_TYPE_POINTER, pendingCDMSession, nullptr)));
     m_pendingCDMSession = pendingCDMSession;
+    for( it : m_cdmSessions ) {
+        if( it == pendingCDMSession )
+            return true;
+    }
+    m_cdmSessions.push_back( pendingCDMSession );
+    return false;
 }
 
 void AppendPipeline::appsinkCapsChanged()
@@ -687,7 +782,6 @@ void AppendPipeline::appsinkCapsChanged()
 
     // This means that we're right after a new track has appeared. Otherwise, it's a caps change inside the same track.
     bool previousCapsWereNull = !m_appsinkCaps;
-
 
     if (previousCapsWereNull || !gst_caps_is_equal(m_appsinkCaps.get(), caps.get())) {
         m_appsinkCaps = WTFMove(caps);
@@ -901,6 +995,10 @@ void AppendPipeline::abort()
     GST_DEBUG("aborting");
 
     m_pendingBuffer = nullptr;
+//     m_cdmSessions.clear();
+//     m_initData.clear();
+//     m_awaitingInitData = nullptr;
+//     m_pendingCDMSession = nullptr;
 
     // Abort already ongoing.
     if (m_abortPending)
@@ -946,12 +1044,14 @@ void AppendPipeline::reportAppsrcNeedDataReceived()
 
 GstFlowReturn AppendPipeline::handleNewAppsinkSample(GstElement* appsink)
 {
+    fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     ASSERT(!WTF::isMainThread());
 
     // Even if we're disabled, it's important to pull the sample out anyway to
     // avoid deadlocks when changing to GST_STATE_NULL having a non empty appsink.
     GRefPtr<GstSample> sample = adoptGRef(gst_app_sink_pull_sample(GST_APP_SINK(appsink)));
     LockHolder locker(m_newSampleLock);
+    fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
 
     if (!m_playerPrivate || m_appendState == AppendState::Invalid) {
         GST_WARNING("AppendPipeline has been disabled, ignoring this sample");
@@ -968,6 +1068,7 @@ GstFlowReturn AppendPipeline::handleNewAppsinkSample(GstElement* appsink)
     // an exceptional condition (entered in Invalid state, destructor, etc.).
     // We can't reliably delete info here, appendPipelineAppsinkNewSampleMainThread will do it.
 
+    fprintf(stderr," %4d | %p | %p | AppendPipeline::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     return m_flowReturn;
 }
 

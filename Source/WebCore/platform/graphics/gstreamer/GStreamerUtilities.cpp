@@ -65,8 +65,12 @@ bool getVideoSizeAndFormatFromCaps(GstCaps* caps, WebCore::IntSize& size, GstVid
     GstVideoInfo info;
 
     gst_video_info_init(&info);
-    if (!gst_video_info_from_caps(&info, caps))
+    GstCaps* ccaps = gst_caps_copy( caps );
+    gst_caps_set_simple( ccaps, "format", G_TYPE_STRING, "ENCODED", NULL );
+    if (!gst_video_info_from_caps(&info, ccaps)) {
+        gst_caps_unref( ccaps );
         return false;
+    }
 
     format = GST_VIDEO_INFO_FORMAT(&info);
     size.setWidth(GST_VIDEO_INFO_WIDTH(&info));
@@ -75,6 +79,7 @@ bool getVideoSizeAndFormatFromCaps(GstCaps* caps, WebCore::IntSize& size, GstVid
     pixelAspectRatioDenominator = GST_VIDEO_INFO_PAR_D(&info);
     stride = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
 
+    gst_caps_unref( ccaps );
     return true;
 }
 

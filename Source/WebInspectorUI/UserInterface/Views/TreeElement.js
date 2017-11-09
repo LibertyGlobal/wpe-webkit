@@ -618,9 +618,9 @@ WebInspector.TreeElement = class TreeElement extends WebInspector.Object
         let computedStyle = window.getComputedStyle(this._listItemNode);
         let start = 0;
         if (WebInspector.resolvedLayoutDirection() === WebInspector.LayoutDirection.RTL)
-            start += this._listItemNode.totalOffsetRight - computedStyle.getPropertyCSSValue("padding-right").getFloatValue(CSSPrimitiveValue.CSS_PX) - this.arrowToggleWidth;
+            start += this._listItemNode.totalOffsetRight - parseFloat(computedStyle.getPropertyValue("padding-right")) - this.arrowToggleWidth;
         else
-            start += this._listItemNode.totalOffsetLeft + computedStyle.getPropertyCSSValue("padding-left").getFloatValue(CSSPrimitiveValue.CSS_PX);
+            start += this._listItemNode.totalOffsetLeft + parseFloat(computedStyle.getPropertyValue("padding-left"));
 
         return event.pageX >= start && event.pageX <= start + this.arrowToggleWidth && this.hasChildren;
     }

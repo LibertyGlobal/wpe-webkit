@@ -72,10 +72,10 @@ static const double ExponentialMovingAverageCoefficient = 0.1;
 #undef LOG_DISABLED
 #endif
 
-// #define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
-// #define LOG_DISABLED 0
-#define LOG( x, s... )  ({ })
-#define LOG_DISABLED 1
+#define LOG( x, s... )  ({ char _buf[4096] = { 0 }; int _l = 0; _l += snprintf(_buf+_l,sizeof(_buf)-_l," %4d | ["#x"] %p ",__LINE__,(void*)pthread_self()); _l += snprintf(_buf+_l,sizeof(_buf)-_l,"| " s); fprintf(stderr,"%s\n",_buf); })
+#define LOG_DISABLED 0
+// #define LOG( x, s... )  ({ })
+// #define LOG_DISABLED 1
 
 struct SourceBuffer::TrackBuffer {
     MediaTime lastDecodeTimestamp;
@@ -300,7 +300,9 @@ ExceptionOr<void> SourceBuffer::abort()
         return Exception { INVALID_STATE_ERR };
 
     // 4. If the sourceBuffer.updating attribute equals true, then run the following steps: ...
+    fprintf(stderr," %4d | %p | %p | SourceBuffer::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     abortIfUpdating();
+    fprintf(stderr," %4d | %p | %p | SourceBuffer::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
 
     // 5. Run the reset parser state algorithm.
     resetParserState();
@@ -383,7 +385,9 @@ void SourceBuffer::abortIfUpdating()
     // 4.1. Abort the buffer append algorithm if it is running.
     m_appendBufferTimer.stop();
     m_pendingAppendData.clear();
+    fprintf(stderr," %4d | %p | %p | SourceBuffer::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     m_private->abort();
+    fprintf(stderr," %4d | %p | %p | SourceBuffer::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
 
     // 4.2. Set the updating attribute to false.
     m_updating = false;
@@ -417,7 +421,9 @@ void SourceBuffer::removedFromMediaSource()
     if (isRemoved())
         return;
 
+    fprintf(stderr," %4d | %p | %p | SourceBuffer::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
     abortIfUpdating();
+    fprintf(stderr," %4d | %p | %p | SourceBuffer::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
 
     for (auto& trackBufferPair : m_trackBufferMap.values()) {
         trackBufferPair.samples.clear();
@@ -565,8 +571,11 @@ ExceptionOr<void> SourceBuffer::appendBufferInternal(const unsigned char* data, 
 
 void SourceBuffer::appendBufferTimerFired()
 {
-    if (isRemoved())
+    fprintf(stderr," %4d | %p | %p | SourceBuffer::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
+    if (isRemoved()) {
+        fprintf(stderr," %4d | %p | %p | SourceBuffer::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
         return;
+    }
 
     ASSERT(m_updating);
 
@@ -589,11 +598,13 @@ void SourceBuffer::appendBufferTimerFired()
     // 1. Loop Top: If the input buffer is empty, then jump to the need more data step below.
     if (!m_pendingAppendData.size()) {
         sourceBufferPrivateAppendComplete(AppendSucceeded);
+        fprintf(stderr," %4d | %p | %p | SourceBuffer::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
         return;
     }
 
     m_private->append(m_pendingAppendData.data(), appendSize);
     m_pendingAppendData.clear();
+    fprintf(stderr," %4d | %p | %p | SourceBuffer::%s\n",__LINE__,this,(void*)pthread_self(),__FUNCTION__);
 }
 
 void SourceBuffer::sourceBufferPrivateAppendComplete(AppendResult result)
